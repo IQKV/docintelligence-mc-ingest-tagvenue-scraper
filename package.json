@@ -18,17 +18,17 @@
     "cli:help": "node ./bin/scrape.js --help",
     "formatter:check": "oxfmt --check",
     "formatter:write": "oxfmt --write",
-    "lint": "pnpm lint:oxlint && pnpm lint:stylelint",
+    "lint": "pnpm lint:oxlint",
     "lint:oxlint": "oxlint",
-    "lint:stylelint": "stylelint \"**/*.css\" --aei",
     "node_modules:cleanup": "rm -rf node_modules",
     "prepare": "husky",
     "release": "release-it --ci",
+    "test": "echo \"No tests yet\" && exit 0",
     "typecheck": "tsc -p jsconfig.json --noEmit || true"
   },
   "dependencies": {
     "axios": "^1.7.7",
-    "cheerio": "^1.0.0-rc.12",
+    "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
     "minimist": "^1.2.8",
     "p-queue": "^8.0.1",
@@ -40,20 +40,18 @@
     "@commitlint/config-conventional": "^21.2.0",
     "@release-it/conventional-changelog": "^12.0.0",
     "cz-conventional-changelog": "^3.3.0",
-    "glob": "^13.0.6",
     "husky": "9.1.7",
     "lint-staged": "^17.2.0",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "prettier-plugin-packagejson": "^3.0.2",
     "release-it": "^21.0.0",
     "release-it-pnpm": "^4.6.6",
-    "sort-package-json": "^4.0.0",
-    "stylelint": "^17.14.1",
-    "stylelint-config-standard-scss": "^17.0.0",
-    "tsdown": "^0.22.14"
+    "sort-package-json": "^4.0.0"
   },
   "optionalDependencies": {
+    "hpagent": "^1.2.0",
     "playwright": "^1.45.3"
   },
   "lint-staged": {
