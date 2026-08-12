@@ -1,16 +1,39 @@
 {
-  "name": "@iqkv/standard-blank-project-layout",
-  "version": "0.0.0",
-  "description": "Provide an optional Git commit hooks.",
-  "license": "Apache-2.0",
+  "name": "@iqkv/mi-ingestion-tagvenue-scraper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tagvenue.com venue and room listing scraper. Produces canonical VenueRegistry-compatible JSON for ingestion into the VenueMi Intelligence venue registry.",
+  "license": "SEE LICENSE IN LICENSE",
+  "bin": {
+    "mi-ingestion-tagvenue-scraper": "./bin/scrape.js"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
   "scripts": {
+    "start": "node ./bin/scrape.js",
+    "dev": "node --watch ./bin/scrape.js --log-level debug",
+    "cli:help": "node ./bin/scrape.js --help",
     "formatter:check": "oxfmt --check",
     "formatter:write": "oxfmt --write",
-    "lint": "pnpm lint:stylelint",
+    "lint": "pnpm lint:oxlint && pnpm lint:stylelint",
+    "lint:oxlint": "oxlint",
     "lint:stylelint": "stylelint \"**/*.css\" --aei",
     "node_modules:cleanup": "rm -rf node_modules",
     "prepare": "husky",
-    "release": "release-it --ci"
+    "release": "release-it --ci",
+    "typecheck": "tsc -p jsconfig.json --noEmit || true"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.4.5",
+    "minimist": "^1.2.8",
+    "p-queue": "^8.0.1",
+    "p-throttle": "^6.2.0",
+    "robots-parser": "^3.0.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
@@ -30,6 +53,9 @@
     "stylelint-config-standard-scss": "^17.0.0",
     "tsdown": "^0.22.14"
   },
+  "optionalDependencies": {
+    "playwright": "^1.45.3"
+  },
   "lint-staged": {
     "*": [
       "pnpm formatter:check"
@@ -46,5 +72,5 @@
   "engines": {
     "node": ">=22.13.0"
   },
-  "packageManager": "pnpm@11.0.8"
+  "packageManager": "pnpm@10.33.2"
 }
