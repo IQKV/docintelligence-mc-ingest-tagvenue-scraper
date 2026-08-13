@@ -1,8 +1,8 @@
-# mi-ingestion-tagvenue-scraper
+# mi-mc-ingest-tagvenue-scraper
 
-> **Tagvenue → VenueMi Registry Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue and room listings. Produces canonical VenueRegistry-compatible JSON files for cold-start ingestion into the VenueMi Intelligence platform venue registry.
+> **Tagvenue → VenueMi Master Catalog Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue and room listings. Produces `MasterVenueRecord`-compatible JSON files for cold-start ingestion into the VenueMi Intelligence internal platform **Venue Master Catalog** (`public.master_venue`).
 
-[![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--ingestion--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/mi-ingestion-tagvenue-scraper)
+[![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--master--catalog--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/mi-mc-ingest-tagvenue-scraper)
 [![Status](https://img.shields.io/badge/status-MVP-yellow)](#)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-brightgreen)](#engines)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the `public.venue_registry` table of the `mi-venue-service` (VenueMi Intelligence platform).
+Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `mi-venue-service` (VenueMi Intelligence platform).
 
 Key characteristics:
 
@@ -22,7 +22,7 @@ Key characteristics:
 - **Robots.txt compliant** out of the box with `robots-parser`.
 - **Docker & K8s-native** — fixed `/data` volume mount point, ENV-var + CLI-arg configuration.
 
-Think of it as: the **provider adapter that converts Tagvenue public HTML into VenueRegistry canonical JSON**, in a self-contained, schedulable package.
+Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HTML into a `MasterVenueRecord` JSON envelope**, in a self-contained, schedulable package. Never connects to the database — the importer worker handles DB upsert.
 
 ---
 
@@ -46,7 +46,7 @@ Think of it as: the **provider adapter that converts Tagvenue public HTML into V
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        mi-ingestion-tagvenue-scraper                  │
+│                        mi-mc-ingest-tagvenue-scraper                  │
 │                                                                       │
 │  PASS 1 — DISCOVERY (collect /rooms/... URLs)                         │
 │                                                                       │
@@ -74,8 +74,8 @@ Think of it as: the **provider adapter that converts Tagvenue public HTML into V
 │              └───────────────────┬───────────────────┘                │
 │                                  ▼                                    │
 │              ┌───────────────────────────────────────┐                │
-│              │   Normalize → CanonicalVenueDTO       │                │
-│              │   (VenueRegistry canonical field set) │                │
+│              │   Normalize → MasterVenueRecord       │                │
+│              │   (matches Master Catalog field set)  │                │
 │              └───────────────────┬───────────────────┘                │
 │                                  ▼                                    │
 │              ┌───────────────────────────────────────┐                │
@@ -103,7 +103,7 @@ For each room detail page, the scraper prioritizes sources as:
 2. **DOM table selectors** (`data-testid`/`.spec-table`/`.room-features`) for fields not yet in JSON-LD: host info, response rate, catering details, facilities, accessibility, allowed events, host rules, nearest station.
 3. **(browser mode only)** Playwright `page.waitForSelector('.price-widget')` + evaluate for JS-rendered pricing grids.
 
-Extracted fields flow through the **Tagvenue → Canonical normalizer** that emits `CanonicalVenueDTO` matching the `venue_registry.metadata` schema shape (same `_schema_version`, same nested keys: `capacity.configurations`, `catering.policy`, `av_tech`, `amenities[]`, `restrictions[]`, `pricing.minimum_spend` etc.).
+Extracted fields flow through the **Tagvenue → MasterVenueRecord normalizer** that emits `MasterVenueRecord` matching the `public.master_venue.metadata` schema shape (same `_schema_version`, same nested keys: `capacity.configurations`, `catering.policy`, `av_tech`, `amenities[]`, `restrictions[]`, `pricing.minimum_spend` etc.). The downstream `mi-mc-loader` worker then maps each record 1-to-1 into `public.master_venue_external` row and merges provenance into the parent `public.master_venue` row.
 
 ---
 
@@ -117,7 +117,7 @@ The scraper outputs a single JSON file to:
 
 where `<outputDir>` defaults to `/data` (fixed container mount point; overridable via `--output-dir` / `TV_OUTPUT_DIR`) and `<slug>` is the city slug or `tagvenue-venues` when no city filter is used.
 
-Each array element is one **Tagvenue room record** (i.e. one `VenueRegistryEntry`) with the following top-level shape (matches the shape the `mi-venue-service` registry importer expects — see also [architecture.md](docs/architecture/README.md)):
+Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `mi-mc-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/venuemi-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/venuemi-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
 
 ```json
 {
@@ -283,7 +283,7 @@ Each array element is one **Tagvenue room record** (i.e. one `VenueRegistryEntry
 
 - `confidence` defaults to **0.70–0.82** (web scraped source). It degrades to 0.55 when JSON-LD is missing and fields come only from DOM selectors.
 - `scrape_run.fetcher` is `http` (SSR mode) or `browser` (Playwright mode) so downstream dedup logic can weight fields accordingly.
-- `external_id` format: `tagvenue:room:<room_id>` — stable across runs, use this in the VenueRegistry upsert dedup key.
+- `external_id` format: `tagvenue:room:<room_id>` — stable across runs. The importer worker uses the composite key `(external_source, external_id)` to UPSERT into `public.master_venue_external`. If the row exists → update `last_seen_at` + merge provenance into the parent `master_venue`. If not → proceed to name+alias+geo fuzzy dedup against `public.master_venue` to decide MERGE vs CREATE new master row.
 
 ---
 
@@ -344,7 +344,7 @@ DEFAULTS (hardcoded in src/config.js)
 ### 6.2 Local installation
 
 ```bash
-cd mi-ingestion-tagvenue-scraper
+cd mi-mc-ingest-tagvenue-scraper
 
 # Install deps (playwright is optional; pnpm installs it by default because it's "optionalDependencies")
 pnpm install
@@ -387,17 +387,17 @@ pnpm start \
 
 ```bash
 # 1. Build the SSR-only slim image (~140MB compressed; excludes Playwright browsers)
-docker build -t ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:latest .
+docker build -t iqkv/mi-mc-ingest-tagvenue-scraper:latest .
 
 # 2. Or build the with-browser variant (tagged separately, ~800MB, includes Chromium + deps)
 docker build \
   --build-arg INSTALL_PLAYWRIGHT=1 \
-  -t ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:with-browser .
+  -t iqkv/mi-mc-ingest-tagvenue-scraper:with-browser .
 
 # 3. Run sitemap 100-venue scrape into local ./data dir
 docker run --rm \
   -v "$(pwd)/data:/data" \
-  ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:latest \
+  iqkv/mi-mc-ingest-tagvenue-scraper:latest \
   --mode sitemap --limit 100
 
 # 4. Run city search filtered via ENV vars (no CLI args)
@@ -408,13 +408,13 @@ docker run --rm \
   -e TV_COUNTRY=GB \
   -e TV_PEOPLE=100 \
   -e TV_LIMIT=30 \
-  ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:latest
+  iqkv/mi-mc-ingest-tagvenue-scraper:latest
 
 # 5. With-browser variant for JS-rendered pricing tables
 docker run --rm \
   -v "$(pwd)/data:/data" \
   -e TV_PROXY='http://user:pass@residential-proxy.example:22225' \
-  ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:with-browser \
+  iqkv/mi-mc-ingest-tagvenue-scraper:with-browser \
   --browser --mode search --city madrid --country ES --limit 25
 ```
 
@@ -434,7 +434,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: scraper
-          image: ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:latest
+          image: iqkv/mi-mc-ingest-tagvenue-scraper:latest
           imagePullPolicy: IfNotPresent
           resources:
             requests: { cpu: "250m", memory: "128Mi" }
@@ -461,7 +461,7 @@ spec:
       volumes:
         - name: output
           persistentVolumeClaim:
-            claimName: venuemi-registry-scrape-pvc
+            claimName: venuemi-master-catalog-scrape-pvc
 ```
 
 Apply: `kubectl apply -f k8s/job-london-100.yaml`.
@@ -488,7 +488,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: scraper
-              image: ghcr.io/iqkv/mi-ingestion-tagvenue-scraper:latest
+              image: iqkv/mi-mc-ingest-tagvenue-scraper:latest
               args: ["--mode", "sitemap", "--limit", "0", "--concurrency", "4"]
               resources:
                 requests: { cpu: "500m", memory: "256Mi" }
@@ -501,25 +501,25 @@ spec:
           volumes:
             - name: output
               persistentVolumeClaim:
-                claimName: venuemi-registry-scrape-pvc
+                claimName: venuemi-master-catalog-scrape-pvc
 ```
 
-The scraped JSON is dropped into `/data` shared PV; wire a follow-up job (or `mi-venue-ingestion-worker` registry importer) that watches the PV for new files and upserts them into `public.venue_registry`.
+The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`mi-mc-loader`** Job (or watcher process) that consumes new files, UPSERTs into `public.master_venue_external`, and runs the fuzzy dedup+merge pipeline against `public.master_venue` (see §9).
 
 ---
 
 ## 7. Project Structure
 
 ```
-mi-ingestion-tagvenue-scraper/
+mi-mc-ingest-tagvenue-scraper/
 ├── bin/
 │   └── scrape.js                 # CLI entrypoint — shebang + delegates to src/cli.js
 ├── src/
 │   ├── cli.js                    # CLI argv parsing → runner orchestration
 │   ├── config.js                 # 3-tier defaults/ENV/config-file/CLI resolver
 │   ├── run.js                    # Runner: discovery → detail pass → writer
-│   ├── canonical/
-│   │   └── venue-registry-dto.js # Canonical shape matching venue_registry.metadata
+│   ├── master-catalog/
+│   │   └── master-venue-record.js  # Shared MasterVenueRecord shape (matches public.master_venue.metadata schema)
 │   ├── discovery/
 │   │   ├── sitemap.js            # robots.txt aware sitemap.xml / sitemap-rooms parser
 │   │   └── search.js             # ?page=1…N paginated search URL collector
@@ -531,7 +531,7 @@ mi-ingestion-tagvenue-scraper/
 │   │   └── tagvenue/
 │   │       ├── selectors.js      # JSON-LD paths + CSS selectors catalog
 │   │       ├── extractor.js      # (html|page) → raw tagvenue record
-│   │       └── normalizer.js     # raw tagvenue record → CanonicalVenueDTO
+│   │       └── normalizer.js     # raw tagvenue record → MasterVenueRecord
 │   ├── output/
 │   │   ├── json-writer.js        # Atomic write + BOM-free JSON + _last.json symlink
 │   │   └── logger.js             # Log level + stdout + optional file tee
@@ -542,7 +542,7 @@ mi-ingestion-tagvenue-scraper/
 ├── docs/
 │   ├── api/README.md             # Future: public API surface of lib exports
 │   ├── architecture/README.md    # Design notes, provider contract, future adapters
-│   └── deployment/README.md      # K8s manifests, Helm notes, registry push scripts
+│   └── deployment/README.md      # K8s manifests, Helm notes, OCI image push scripts
 ├── examples/
 │   └── london-100.json           # Sample output payload shape
 ├── .env.example
@@ -575,28 +575,85 @@ Commit messages follow conventional commits via commitlint/husky, same as the re
 
 ---
 
-## 9. VenueMi Intelligence Integration
+## 9. VenueMi Intelligence Integration (Venue Master Catalog Backdrop)
 
-This scraper is the **"Tagvenue provider adapter"** of the VenueMi platform venue registry pipeline:
+This scraper is the **Tagvenue provider adapter** of the VenueMi internal **Venue Master Catalog (MC)** population pipeline. The MC is a hidden internal reference dataset (never exposed directly to tenants) that powers three invisible backdrop capabilities — (1) silent gap-fill / auto-enrich when agents upload asset PDFs, (2) silent form auto-populate when agents create a venue, (3) ingestion-time dedup so we don't create 50 "Grand Hyatt Dubai" duplicate master rows.
 
 ```
-mi-ingestion-tagvenue-scraper  ─(JSON to /data PV)─▶  mi-venue-ingestion-worker
-                                                               │
-                                                               ▼
-                                                VenueRegistryIngestionService
-                                                               │
-                                                 dedup (external_id + geo + name)
-                                                               │
-                                                 merge into public.venue_registry
-                                                 confidence = 0.70…0.82 (web_scrape)
-                                                 source = 'web_scrape'
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  INGESTION DECOMPOSITION — 4 small workers, NOT 1 big processing-worker             │
+│                                                                                     │
+│  ┌───────────────────────────────┐                                                   │
+│  │ mi-mc-ingest-tagvenue-scraper │  ◀  YOU ARE HERE. Node.js SSR / Browser CLI.     │
+│  │  (K8s Job / CronJob, Node.js) │    Stateless. NO DB connections, EVER.         │
+│  └────────────┬──────────────────┘                                                   │
+│               │ writes JSON envelope: List<MasterVenueRecord>                       │
+│               ▼                                                                     │
+│     /data/venuemi-master-catalog-scrape-pvc/tagvenue-london-2026-08-12.json        │
+│               │                                                                     │
+│  ┌────────────▼────────────────────────────────────────────────────────────────┐    │
+│  │ NEW: mi-mc-loader  — Spring Boot Worker / CLI (NEXT TO BUILD) │    │
+│  │                                                                            │    │
+│  │  1. Reads envelope. Validates schema. Counts stats.                         │    │
+│  │  2. FOR EACH MasterVenueRecord:                                             │    │
+│  │     a. UPSERT public.master_venue_external                                  │    │
+│  │        UNIQUE(external_source='tagvenue', external_id=record.external_id)   │    │
+│  │        → if FOUND → update last_seen_at, confidence, provider_raw_data → SKIP dedup│
+│  │        → if NEW   → proceed to step b (fuzzy dedup)                          │    │
+│  │                                                                            │    │
+│  │     b. Fuzzy dedup against existing public.master_venue                     │    │
+│  │        Candidates: same city + same country                                 │    │
+│  │        Score A: pg_trgm similarity(record.name, master_venue.name + aliases)│    │
+│        Score B: PostGIS ST_DWithin(record.location, master_venue.location, 200m)│    │
+│  │        Combined = 0.6·A + 0.4·B                                             │    │
+│  │        Thresholds: ≥ 0.75 (with geo) OR ≥ 0.90 (text-only)                  │    │
+│  │        Ambiguity guard: top1 - top2 ≥ 0.08 OR flag for human review         │    │
+│  │                                                                            │    │
+│  │     c. MERGE (match) OR CREATE (no match) → public.master_venue             │    │
+│  │        Field conflict priority: MANUAL_OVERRIDE > VERIFIED > HIGH_CONF_AI > │    │
+│  │                                     MC_INHERIT(priority=7) > MEDIUM > LOW > │    │
+│  │                                     SCRAPE_PROVIDER(0.70…0.82)              │    │
+│  │                                                                            │    │
+│  │  3. Write audit row → public.master_venue_import_log                       │    │
+│  │  4. (Optional) Publish RabbitMQ: master.venue.imported.batch               │    │
+│  └─────────────────────────────────┬──────────────────────────────────────────┘    │
+│                                    │ writes                                         │
+│                                    ▼                                                │
+│                 PostgreSQL public schema:                                            │
+│                   master_venue              (canonical master rows)                  │
+│                   master_venue_alias        (pg_trgm GIN dedup aliases)              │
+│                   master_venue_external     (1 master ↔ N provider records)          │
+│                   master_venue_import_log   (audit per import run)                   │
+│                                    │                                                │
+│                                    │ ▼ 3 INVISIBLE backdrop consumers:              │
+│                                    │                                                │
+│                                    ├─ ① Gap-fill at asset-ETL time                  │
+│                                    │   Planner uploads PDF → t_xxx.venue upload     │
+│                                    │   → match venue by name+city+geo against MC   │
+│                                    │   → if match: copy 23 non-null fields into      │
+│                                    │     venue.metadata, provenance=MC_INHERIT(7)    │
+│                                    │   → Planner just sees "✓ 23 fields auto-filled"│
+│                                    │                                                │
+│                                    ├─ ② Silent form auto-populate                   │
+│                                    │   Planner types "Grand Hyatt Dubai" in CreateVenue│
+│                                    │   → backend fuzzy-finds MC match                │
+│                                    │   → pre-fills all non-conflicting fields.       │
+│                                    │   Planner edits freely; wrong-match overrides   │
+│                                    │   become MANUAL_OVERRIDE priority 10.          │
+│                                    │                                                │
+│                                    └─ ③ Ingestion-time dedup (step 2b above)       │
+│                                                                                     │
+│  ⚠️ Branch B cross-source interleaved search (ADR D4 Option D) = DEFERRED / NOT USED│
+│     for v0.1–v1.0. Master Catalog only works via the 3 invisible backdrop patterns.│
+│     Tenants NEVER see "Search Master Catalog" or "Include Master suggestions" in UI│
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Downstream design docs:
 
 - [Platform Architecture Reference (VenueMi)](../venuemi-system-design-documentation/docs/platform/architecture.md)
-- [Registry design, cold-start & merge rules (VenueMi)](../venuemi-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)
-- [Metadata aggregation & provenance model (VenueMi)](../venuemi-system-design-documentation/docs/platform/architecture.md#3-metadata-aggregation)
+- [Master Catalog cold-start, dedup thresholds & merge rules (VenueMi)](../venuemi-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)
+- [Metadata aggregation, provenance priority list & MC_INHERIT role (VenueMi)](../venuemi-system-design-documentation/docs/platform/architecture.md#3-metadata-aggregation)
 - [Architecture notes for this specific scraper](docs/architecture/README.md)
 
 ---

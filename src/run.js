@@ -31,7 +31,7 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
     outputDir: config.outputDir,
   });
 
-  logger.info("mi-ingestion-tagvenue-scraper starting", {
+  logger.info("mi-mc-ingest-tagvenue-scraper starting", {
     mode: config.mode,
     city: config.city ?? null,
     country: config.country ?? null,

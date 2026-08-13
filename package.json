@@ -1,11 +1,11 @@
 {
-  "name": "@iqkv/mi-ingestion-tagvenue-scraper",
+  "name": "@iqkv/mi-mc-ingest-tagvenue-scraper",
   "version": "0.1.0",
   "private": true,
   "description": "Tagvenue.com venue and room listing scraper. Produces canonical VenueRegistry-compatible JSON for ingestion into the VenueMi Intelligence venue registry.",
   "license": "SEE LICENSE IN LICENSE",
   "bin": {
-    "mi-ingestion-tagvenue-scraper": "./bin/scrape.js"
+    "mi-mc-ingest-tagvenue-scraper": "./bin/scrape.js"
   },
   "type": "module",
   "main": "./src/index.js",

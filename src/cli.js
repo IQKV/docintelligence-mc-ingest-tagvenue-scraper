@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { resolveConfig } from './config.js';
 import { run } from './run.js';
 
-const HELP = `Usage: mi-ingestion-tagvenue-scraper [options]
+const HELP = `Usage: mi-mc-ingest-tagvenue-scraper [options]
 
 Tagvenue.com venue and room scraper. Produces VenueRegistry-compatible JSON.
 
@@ -46,9 +46,9 @@ Environment variables (TV_ prefix, 1:1 with options above):
   TV_LOG_FILE TV_DRY_RUN
 
 Examples:
-  mi-ingestion-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
-  mi-ingestion-tagvenue-scraper --mode sitemap -l 100 -o ./data
-  mi-ingestion-tagvenue-scraper --mode urls-file --urls-file ./urls.txt
+  mi-mc-ingest-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
+  mi-mc-ingest-tagvenue-scraper --mode sitemap -l 100 -o ./data
+  mi-mc-ingest-tagvenue-scraper --mode urls-file --urls-file ./urls.txt
 `;
 
 async function main() {
