@@ -21,6 +21,9 @@ const DEFAULTS = Object.freeze({
   page: 1,
   limit: 100,
   urlsFile: null,
+  // Sitemap-specific options
+  sitemapSince: null,       // ISO date or relative shorthand (e.g. "7d", "2w", "1m") — only scrape URLs with lastmod >= this date
+  sitemapMaxPages: 100,     // maximum number of paginated sitemap-rooms-N.xml pages to fetch
   concurrency: 5,
   minDelayMs: 600,
   jitterMs: 400,
@@ -51,6 +54,8 @@ const ENV_MAP = {
   TV_PAGE: v => ({ page: parseInt(v, 10) || DEFAULTS.page }),
   TV_LIMIT: v => ({ limit: parseInt(v, 10) || 0 }),
   TV_URLS_FILE: 'urlsFile',
+  TV_SITEMAP_SINCE: 'sitemapSince',
+  TV_SITEMAP_MAX_PAGES: v => ({ sitemapMaxPages: parseInt(v, 10) || DEFAULTS.sitemapMaxPages }),
   TV_CONCURRENCY: v => ({ concurrency: parseInt(v, 10) || DEFAULTS.concurrency }),
   TV_MIN_DELAY_MS: v => ({ minDelayMs: parseInt(v, 10) || 0 }),
   TV_JITTER_MS: v => ({ jitterMs: parseInt(v, 10) || 0 }),
@@ -141,7 +146,7 @@ export function resolveConfig({ argv = process.argv.slice(2), cwd = process.cwd(
   };
 
   // Coerce numerics (CLI arg string -> number)
-  for (const key of ['people', 'minPrice', 'maxPrice', 'page', 'limit', 'concurrency', 'minDelayMs', 'jitterMs', 'timeoutMs', 'retries']) {
+  for (const key of ['people', 'minPrice', 'maxPrice', 'page', 'limit', 'sitemapMaxPages', 'concurrency', 'minDelayMs', 'jitterMs', 'timeoutMs', 'retries']) {
     if (merged[key] != null && typeof merged[key] !== 'number') merged[key] = parseIntOrNull(merged[key]);
   }
   for (const key of ['browser', 'browserStealth', 'dryRun']) {

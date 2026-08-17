@@ -3,8 +3,21 @@ import path from 'node:path';
 
 export const BASE_URL = 'https://www.tagvenue.com';
 export const SITEMAP_INDEX_URL = `${BASE_URL}/sitemap.xml`;
-export const DEFAULT_ROOMS_SITEMAP_URL = `${BASE_URL}/sitemap-rooms`;
-export const DEFAULT_VENUES_SITEMAP_URL = `${BASE_URL}/sitemap-venues`;
+
+// Tagvenue uses paginated sitemaps: sitemap-rooms-1.xml, sitemap-rooms-2.xml, …
+// The bare path without a number is treated as the index for that group.
+export const DEFAULT_ROOMS_SITEMAP_INDEX_URL = `${BASE_URL}/sitemap-rooms.xml`;
+// Kept for backwards-compat (pre-pagination fallback — redirects to first page on the live site).
+export const DEFAULT_ROOMS_SITEMAP_URL = `${BASE_URL}/sitemap-rooms.xml`;
+export const DEFAULT_VENUES_SITEMAP_URL = `${BASE_URL}/sitemap-venues.xml`;
+
+// Pattern that matches any rooms-sitemap URL (index or numbered page):
+//   sitemap-rooms.xml  |  sitemap-rooms-1.xml  |  sitemap-rooms-23.xml
+export const ROOMS_SITEMAP_RE = /sitemap-rooms(?:-\d+)?\.xml/i;
+
+// Maximum number of paginated rooms-sitemap pages to fetch when no explicit cap is set.
+// Tagvenue has ~20 pages as of 2024; 100 is a safe ceiling.
+export const SITEMAP_MAX_PAGES_DEFAULT = 100;
 
 // JSON-LD paths (schema.org) — see probe result: first ld block is EventVenue/Restaurant
 export const LD_SELECTOR = 'script[type="application/ld+json"]';
