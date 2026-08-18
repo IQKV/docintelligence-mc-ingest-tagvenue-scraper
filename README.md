@@ -338,7 +338,7 @@ DEFAULTS (hardcoded in src/config.js)
 ### 6.1 Prerequisites
 
 - **Node.js 22.13+** (see `engines` in [package.json](package.json)).
-- **pnpm 11.0.8+** (see `packageManager` in [package.json](package.json)).
+- **pnpm 10.33.2+** (see `packageManager` in [package.json](package.json)).
 - (optional) Docker 24+ / nerdctl for image build and run.
 
 ### 6.2 Local installation
