@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { resolveConfig } from './config.js';
 import { run } from './run.js';
 
-const HELP = `Usage: mi-mc-ingest-tagvenue-scraper [options]
+const HELP = `Usage: mc-ingest-tagvenue-scraper [options]
 
 Tagvenue.com venue and room scraper. Produces VenueRegistry-compatible JSON.
 
@@ -54,16 +54,16 @@ Environment variables (TV_ prefix, 1:1 with options above):
 
 Examples:
   # Full sitemap scrape (all pages, no lastmod filter)
-  mi-mc-ingest-tagvenue-scraper --mode sitemap -l 0 -o ./data
+  mc-ingest-tagvenue-scraper --mode sitemap -l 0 -o ./data
 
   # Incremental: only rooms updated in the last 7 days
-  mi-mc-ingest-tagvenue-scraper --mode sitemap --sitemap-since 7d -l 0
+  mc-ingest-tagvenue-scraper --mode sitemap --sitemap-since 7d -l 0
 
   # Targeted city run with dry-run URL preview
-  mi-mc-ingest-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
+  mc-ingest-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
 
   # Scrape a hand-picked list of URLs
-  mi-mc-ingest-tagvenue-scraper --mode urls-file --urls-file ./urls.txt
+  mc-ingest-tagvenue-scraper --mode urls-file --urls-file ./urls.txt
 `;
 
 async function main() {

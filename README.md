@@ -1,8 +1,8 @@
-# mi-mc-ingest-tagvenue-scraper
+# mc-ingest-tagvenue-scraper
 
-> **Tagvenue → VenueMi Master Catalog Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue and room listings. Produces `MasterVenueRecord`-compatible JSON files for cold-start ingestion into the VenueMi Intelligence internal platform **Venue Master Catalog** (`public.master_venue`).
+> **Tagvenue → Shortlisty Master Catalog Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue and room listings. Produces `MasterVenueRecord`-compatible JSON files for cold-start ingestion into the Shortlisty Intelligence internal platform **Venue Master Catalog** (`public.master_venue`).
 
-[![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--master--catalog--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/mi-mc-ingest-tagvenue-scraper)
+[![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--master--catalog--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/mc-ingest-tagvenue-scraper)
 [![Status](https://img.shields.io/badge/status-MVP-yellow)](#)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-brightgreen)](#engines)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `mi-venue-service` (VenueMi Intelligence platform).
+Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `mi-venue-service` (Shortlisty Intelligence platform).
 
 Key characteristics:
 
@@ -31,7 +31,7 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 | Layer              | Tool                                                   | Why                                                                                                            |
 | ------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | Runtime            | Node.js 22+ (ESM)                                      | Matches existing frontend Node 22 engines policy across the monorepo.                                          |
-| Package mgmt       | pnpm 11                                                | Consistent with `foundation-ui-app`, `venuemi-github-profile` etc.                                             |
+| Package mgmt       | pnpm 11                                                | Consistent with `foundation-ui-app`, `shortlisty-github-profile` etc.                                             |
 | SSR HTTP fetch     | axios 1.x                                              | Plain HTTP GET for SSR-rendered HTML + GZIP decoding, redirect following, timeout/retry.                       |
 | SSR DOM parser     | cheerio 1.x                                            | jQuery-like selectors. Lightweight, ~50MB node_modules total.                                                  |
 | Browser mode (opt) | playwright 1.x (optional)                              | Full Chromium when SSR HTML lacks JS-rendered fields (dynamic pricing tables, real-time availability widgets). |
@@ -46,7 +46,7 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        mi-mc-ingest-tagvenue-scraper                  │
+│                        mc-ingest-tagvenue-scraper                  │
 │                                                                       │
 │  PASS 1 — DISCOVERY (collect /rooms/... URLs)                         │
 │                                                                       │
@@ -117,7 +117,7 @@ The scraper outputs a single JSON file to:
 
 where `<outputDir>` defaults to `/data` (fixed container mount point; overridable via `--output-dir` / `TV_OUTPUT_DIR`) and `<slug>` is the city slug or `tagvenue-venues` when no city filter is used.
 
-Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `mi-mc-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/venuemi-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/venuemi-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
+Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `mi-mc-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
 
 ```json
 {
@@ -344,7 +344,7 @@ DEFAULTS (hardcoded in src/config.js)
 ### 6.2 Local installation
 
 ```bash
-cd mi-mc-ingest-tagvenue-scraper
+cd mc-ingest-tagvenue-scraper
 
 # Install deps (playwright is optional; pnpm installs it by default because it's "optionalDependencies")
 pnpm install
@@ -387,17 +387,17 @@ pnpm start \
 
 ```bash
 # 1. Build the SSR-only slim image (~140MB compressed; excludes Playwright browsers)
-docker build -t iqkv/mi-mc-ingest-tagvenue-scraper:latest .
+docker build -t iqkv/mc-ingest-tagvenue-scraper:latest .
 
 # 2. Or build the with-browser variant (tagged separately, ~800MB, includes Chromium + deps)
 docker build \
   --build-arg INSTALL_PLAYWRIGHT=1 \
-  -t iqkv/mi-mc-ingest-tagvenue-scraper:with-browser .
+  -t iqkv/mc-ingest-tagvenue-scraper:with-browser .
 
 # 3. Run sitemap 100-venue scrape into local ./data dir
 docker run --rm \
   -v "$(pwd)/data:/data" \
-  iqkv/mi-mc-ingest-tagvenue-scraper:latest \
+  iqkv/mc-ingest-tagvenue-scraper:latest \
   --mode sitemap --limit 100
 
 # 4. Run city search filtered via ENV vars (no CLI args)
@@ -408,13 +408,13 @@ docker run --rm \
   -e TV_COUNTRY=GB \
   -e TV_PEOPLE=100 \
   -e TV_LIMIT=30 \
-  iqkv/mi-mc-ingest-tagvenue-scraper:latest
+  iqkv/mc-ingest-tagvenue-scraper:latest
 
 # 5. With-browser variant for JS-rendered pricing tables
 docker run --rm \
   -v "$(pwd)/data:/data" \
   -e TV_PROXY='http://user:pass@residential-proxy.example:22225' \
-  iqkv/mi-mc-ingest-tagvenue-scraper:with-browser \
+  iqkv/mc-ingest-tagvenue-scraper:with-browser \
   --browser --mode search --city madrid --country ES --limit 25
 ```
 
@@ -434,7 +434,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: scraper
-          image: iqkv/mi-mc-ingest-tagvenue-scraper:latest
+          image: iqkv/mc-ingest-tagvenue-scraper:latest
           imagePullPolicy: IfNotPresent
           resources:
             requests: { cpu: "250m", memory: "128Mi" }
@@ -461,7 +461,7 @@ spec:
       volumes:
         - name: output
           persistentVolumeClaim:
-            claimName: venuemi-master-catalog-scrape-pvc
+            claimName: shortlisty-master-catalog-scrape-pvc
 ```
 
 Apply: `kubectl apply -f k8s/job-london-100.yaml`.
@@ -488,7 +488,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: scraper
-              image: iqkv/mi-mc-ingest-tagvenue-scraper:latest
+              image: iqkv/mc-ingest-tagvenue-scraper:latest
               args: ["--mode", "sitemap", "--limit", "0", "--concurrency", "4"]
               resources:
                 requests: { cpu: "500m", memory: "256Mi" }
@@ -501,7 +501,7 @@ spec:
           volumes:
             - name: output
               persistentVolumeClaim:
-                claimName: venuemi-master-catalog-scrape-pvc
+                claimName: shortlisty-master-catalog-scrape-pvc
 ```
 
 The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`mi-mc-loader`** Job (or watcher process) that consumes new files, UPSERTs into `public.master_venue_external`, and runs the fuzzy dedup+merge pipeline against `public.master_venue` (see §9).
@@ -511,7 +511,7 @@ The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`mi-mc-lo
 ## 7. Project Structure
 
 ```
-mi-mc-ingest-tagvenue-scraper/
+mc-ingest-tagvenue-scraper/
 ├── bin/
 │   └── scrape.js                 # CLI entrypoint — shebang + delegates to src/cli.js
 ├── src/
@@ -575,21 +575,21 @@ Commit messages follow conventional commits via commitlint/husky, same as the re
 
 ---
 
-## 9. VenueMi Intelligence Integration (Venue Master Catalog Backdrop)
+## 9. Shortlisty Intelligence Integration (Venue Master Catalog Backdrop)
 
-This scraper is the **Tagvenue provider adapter** of the VenueMi internal **Venue Master Catalog (MC)** population pipeline. The MC is a hidden internal reference dataset (never exposed directly to tenants) that powers three invisible backdrop capabilities — (1) silent gap-fill / auto-enrich when agents upload asset PDFs, (2) silent form auto-populate when agents create a venue, (3) ingestion-time dedup so we don't create 50 "Grand Hyatt Dubai" duplicate master rows.
+This scraper is the **Tagvenue provider adapter** of the Shortlisty internal **Venue Master Catalog (MC)** population pipeline. The MC is a hidden internal reference dataset (never exposed directly to tenants) that powers three invisible backdrop capabilities — (1) silent gap-fill / auto-enrich when agents upload asset PDFs, (2) silent form auto-populate when agents create a venue, (3) ingestion-time dedup so we don't create 50 "Grand Hyatt Dubai" duplicate master rows.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │  INGESTION DECOMPOSITION — 4 small workers, NOT 1 big processing-worker             │
 │                                                                                     │
 │  ┌───────────────────────────────┐                                                   │
-│  │ mi-mc-ingest-tagvenue-scraper │  ◀  YOU ARE HERE. Node.js SSR / Browser CLI.     │
+│  │ mc-ingest-tagvenue-scraper │  ◀  YOU ARE HERE. Node.js SSR / Browser CLI.     │
 │  │  (K8s Job / CronJob, Node.js) │    Stateless. NO DB connections, EVER.         │
 │  └────────────┬──────────────────┘                                                   │
 │               │ writes JSON envelope: List<MasterVenueRecord>                       │
 │               ▼                                                                     │
-│     /data/venuemi-master-catalog-scrape-pvc/tagvenue-london-2026-08-12.json        │
+│     /data/shortlisty-master-catalog-scrape-pvc/tagvenue-london-2026-08-12.json        │
 │               │                                                                     │
 │  ┌────────────▼────────────────────────────────────────────────────────────────┐    │
 │  │ NEW: mi-mc-loader  — Spring Boot Worker / CLI (NEXT TO BUILD) │    │
@@ -651,9 +651,9 @@ This scraper is the **Tagvenue provider adapter** of the VenueMi internal **Venu
 
 Downstream design docs:
 
-- [Platform Architecture Reference (VenueMi)](../venuemi-system-design-documentation/docs/platform/architecture.md)
-- [Master Catalog cold-start, dedup thresholds & merge rules (VenueMi)](../venuemi-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)
-- [Metadata aggregation, provenance priority list & MC_INHERIT role (VenueMi)](../venuemi-system-design-documentation/docs/platform/architecture.md#3-metadata-aggregation)
+- [Platform Architecture Reference (Shortlisty)](../shortlisty-system-design-documentation/docs/platform/architecture.md)
+- [Master Catalog cold-start, dedup thresholds & merge rules (Shortlisty)](../shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)
+- [Metadata aggregation, provenance priority list & MC_INHERIT role (Shortlisty)](../shortlisty-system-design-documentation/docs/platform/architecture.md#3-metadata-aggregation)
 - [Architecture notes for this specific scraper](docs/architecture/README.md)
 
 ---
@@ -679,7 +679,7 @@ Proprietary — IQKV exclusive. See [LICENSE](LICENSE) file for the full terms.
 
 <div align="center">
 
-**Part of the IQKV VenueMi Intelligence family.**
+**Part of the IQKV Shortlisty Intelligence family.**
 
 Brought to you by the IQKV data & platform teams.
 

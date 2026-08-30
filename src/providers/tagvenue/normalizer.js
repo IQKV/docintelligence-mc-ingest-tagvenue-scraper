@@ -19,7 +19,7 @@ import {
   truncate,
 } from '../../utils/normalize.js';
 
-// Schema version matches VenueMi canonical metadata schema.
+// Schema version matches Shortlisty canonical metadata schema.
 const SCHEMA_VERSION = 1;
 
 export function normalizeTagvenueToCanonical(raw, now = new Date()) {
