@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `mi-venue-service` (Shortlisty Intelligence platform).
+Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `shortlisty-catalog-service` (Shortlisty Intelligence platform).
 
 Key characteristics:
 
@@ -103,7 +103,7 @@ For each room detail page, the scraper prioritizes sources as:
 2. **DOM table selectors** (`data-testid`/`.spec-table`/`.room-features`) for fields not yet in JSON-LD: host info, response rate, catering details, facilities, accessibility, allowed events, host rules, nearest station.
 3. **(browser mode only)** Playwright `page.waitForSelector('.price-widget')` + evaluate for JS-rendered pricing grids.
 
-Extracted fields flow through the **Tagvenue → MasterVenueRecord normalizer** that emits `MasterVenueRecord` matching the `public.master_venue.metadata` schema shape (same `_schema_version`, same nested keys: `capacity.configurations`, `catering.policy`, `av_tech`, `amenities[]`, `restrictions[]`, `pricing.minimum_spend` etc.). The downstream `mi-mc-loader` worker then maps each record 1-to-1 into `public.master_venue_external` row and merges provenance into the parent `public.master_venue` row.
+Extracted fields flow through the **Tagvenue → MasterVenueRecord normalizer** that emits `MasterVenueRecord` matching the `public.master_venue.metadata` schema shape (same `_schema_version`, same nested keys: `capacity.configurations`, `catering.policy`, `av_tech`, `amenities[]`, `restrictions[]`, `pricing.minimum_spend` etc.). The downstream `shortlisty-master-venue-loader` worker then maps each record 1-to-1 into `public.master_venue_external` row and merges provenance into the parent `public.master_venue` row.
 
 ---
 
@@ -117,7 +117,7 @@ The scraper outputs a single JSON file to:
 
 where `<outputDir>` defaults to `/data` (fixed container mount point; overridable via `--output-dir` / `TV_OUTPUT_DIR`) and `<slug>` is the city slug or `tagvenue-venues` when no city filter is used.
 
-Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `mi-mc-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
+Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `shortlisty-master-venue-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
 
 ```json
 {
@@ -504,7 +504,7 @@ spec:
                 claimName: shortlisty-master-catalog-scrape-pvc
 ```
 
-The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`mi-mc-loader`** Job (or watcher process) that consumes new files, UPSERTs into `public.master_venue_external`, and runs the fuzzy dedup+merge pipeline against `public.master_venue` (see §9).
+The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`shortlisty-master-venue-loader`** Job (or watcher process) that consumes new files, UPSERTs into `public.master_venue_external`, and runs the fuzzy dedup+merge pipeline against `public.master_venue` (see §9).
 
 ---
 
@@ -592,7 +592,7 @@ This scraper is the **Tagvenue provider adapter** of the Shortlisty internal **V
 │     /data/shortlisty-master-catalog-scrape-pvc/tagvenue-london-2026-08-12.json        │
 │               │                                                                     │
 │  ┌────────────▼────────────────────────────────────────────────────────────────┐    │
-│  │ NEW: mi-mc-loader  — Spring Boot Worker / CLI (NEXT TO BUILD) │    │
+│  │ NEW: shortlisty-master-venue-loader  — Spring Boot Worker / CLI (NEXT TO BUILD) │    │
 │  │                                                                            │    │
 │  │  1. Reads envelope. Validates schema. Counts stats.                         │    │
 │  │  2. FOR EACH MasterVenueRecord:                                             │    │

@@ -4,7 +4,7 @@ import { run } from './run.js';
 
 const HELP = `Usage: mc-ingest-tagvenue-scraper [options]
 
-Tagvenue.com venue and room scraper. Produces VenueRegistry-compatible JSON.
+Tagvenue.com venue and room scraper. Produces master venue-compatible JSON.
 
 Configuration priority: defaults → TV_* env vars → --config file → CLI args
 
