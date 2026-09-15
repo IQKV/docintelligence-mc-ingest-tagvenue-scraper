@@ -31,7 +31,7 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 | Layer              | Tool                                                   | Why                                                                                                            |
 | ------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | Runtime            | Node.js 22+ (ESM)                                      | Matches existing frontend Node 22 engines policy across the monorepo.                                          |
-| Package mgmt       | pnpm 11                                                | Consistent with `foundation-ui-app`, `shortlisty-github-profile` etc.                                             |
+| Package mgmt       | pnpm 11                                                | Consistent with `foundation-ui-app`, `shortlisty-github-profile` etc.                                          |
 | SSR HTTP fetch     | axios 1.x                                              | Plain HTTP GET for SSR-rendered HTML + GZIP decoding, redirect following, timeout/retry.                       |
 | SSR DOM parser     | cheerio 1.x                                            | jQuery-like selectors. Lightweight, ~50MB node_modules total.                                                  |
 | Browser mode (opt) | playwright 1.x (optional)                              | Full Chromium when SSR HTML lacks JS-rendered fields (dynamic pricing tables, real-time availability widgets). |
