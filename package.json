@@ -1,11 +1,11 @@
 {
-  "name": "@shortlisty/shortlisty-mc-ingest-tagvenue-scraper",
+  "name": "@iqkv/venueintelligence-mc-ingest-tagvenue-scraper",
   "version": "0.1.0",
   "private": true,
   "description": "Tagvenue.com venue and room listing scraper. Produces canonical master venue-compatible JSON for ingestion into the Shortlisty Intelligence venue registry.",
   "license": "SEE LICENSE IN LICENSE",
   "bin": {
-    "shortlisty-mc-ingest-tagvenue-scraper": "./bin/scrape.js"
+    "venueintelligence-mc-ingest-tagvenue-scraper": "./bin/scrape.js"
   },
   "type": "module",
   "main": "./src/index.js",
