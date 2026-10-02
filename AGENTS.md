@@ -72,6 +72,7 @@ Format: `type(scope): subject`
   - ❌ `fix(selectors): update CSS selector for capacity`
 
 Examples:
+
 - `feat(normalizer): add cuisine_type field to canonical venue schema`
 - `fix(http): fetch silently drops venues when rate limit returns 429`
 - `refactor(extractor): split venue and room extraction into separate functions`
