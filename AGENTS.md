@@ -119,6 +119,35 @@ Examples:
 - `refactor(extractor): split venue and room extraction into separate functions`
 - `chore(deps): update playwright scraping dependencies`
 
+## Evaluation
+
+How we judge whether an agent task in this repository is actually done. Evaluation is evidence-based — a claim without the command and its observed result is not a pass.
+
+> This section starts minimal and grows with the repository. Add a gate only when a change type repeatedly slips through without it.
+
+### Definition of done
+
+A task is evaluated as done only when all of the following hold:
+
+- Every gate required by the change type below has run and passed.
+- The final report names the exact command(s) run and the observed result (pass/fail) — per AI Agent Guidelines.
+- No required gate was skipped silently. A gate that could not run is reported as a gap, never as a pass.
+
+### Required gates by change type
+
+| Change type | Required gates |
+| --- | --- |
+| Any change | `pnpm typecheck` and `pnpm formatter:check` |
+| Scraper, parser or extractor logic | `pnpm test`; a new non-trivial branch, loop or parser needs a test |
+| Selector or source-site change | `pnpm test`, then `pnpm start` on a sample source — report which sample was used |
+| Network, retry or rate-limit behavior | `pnpm test` covering the failure path (429, timeout), then `pnpm typecheck` |
+| Dependency or config change | `pnpm test`, then `pnpm typecheck` |
+| Docs or `AGENTS.md` only | `pnpm formatter:check` |
+
+### Ordering
+
+Run the narrowest relevant gate first, then the full set for the change type. On the first failure, stop and report it — do not continue on an unproven base (see Execution Discipline).
+
 ## Development Commands
 
 ```bash
