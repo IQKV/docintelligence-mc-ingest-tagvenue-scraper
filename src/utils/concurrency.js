@@ -1,6 +1,6 @@
-import PQueue from 'p-queue';
+import PQueue from "p-queue";
 
-export function createConcurrencyQueue({ concurrency = 5, logger = null, tag = 'queue' } = {}) {
+export function createConcurrencyQueue({ concurrency = 5, logger = null, tag = "queue" } = {}) {
   const q = new PQueue({ concurrency, autoStart: true });
   let started = 0;
   let done = 0;

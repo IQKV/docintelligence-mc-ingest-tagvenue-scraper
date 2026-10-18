@@ -135,14 +135,14 @@ A task is evaluated as done only when all of the following hold:
 
 ### Required gates by change type
 
-| Change type | Required gates |
-| --- | --- |
-| Any change | `pnpm typecheck` and `pnpm formatter:check` |
-| Scraper, parser or extractor logic | `pnpm test`; a new non-trivial branch, loop or parser needs a test |
-| Selector or source-site change | `pnpm test`, then `pnpm start` on a sample source — report which sample was used |
-| Network, retry or rate-limit behavior | `pnpm test` covering the failure path (429, timeout), then `pnpm typecheck` |
-| Dependency or config change | `pnpm test`, then `pnpm typecheck` |
-| Docs or `AGENTS.md` only | `pnpm formatter:check` |
+| Change type                           | Required gates                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| Any change                            | `pnpm typecheck` and `pnpm formatter:check`                                      |
+| Scraper, parser or extractor logic    | `pnpm test`; a new non-trivial branch, loop or parser needs a test               |
+| Selector or source-site change        | `pnpm test`, then `pnpm start` on a sample source — report which sample was used |
+| Network, retry or rate-limit behavior | `pnpm test` covering the failure path (429, timeout), then `pnpm typecheck`      |
+| Dependency or config change           | `pnpm test`, then `pnpm typecheck`                                               |
+| Docs or `AGENTS.md` only              | `pnpm formatter:check`                                                           |
 
 ### Ordering
 

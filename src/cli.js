@@ -1,6 +1,6 @@
-import fs from 'node:fs';
-import { resolveConfig } from './config.js';
-import { run } from './run.js';
+import fs from "node:fs";
+import { resolveConfig } from "./config.js";
+import { run } from "./run.js";
 
 const HELP = `Usage: venueintelligence-mc-ingest-tagvenue-scraper [options]
 

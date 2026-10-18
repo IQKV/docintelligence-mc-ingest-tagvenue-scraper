@@ -334,7 +334,16 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
  * Build the canonical output envelope written to disk.
  * Always has the same top-level shape regardless of dry-run / partial / full run.
  */
-function buildOutputEnvelope({ config, startedAt, finishedAt, discovered, records, failures, dryRun, dryRunUrls }) {
+function buildOutputEnvelope({
+  config,
+  startedAt,
+  finishedAt,
+  discovered,
+  records,
+  failures,
+  dryRun,
+  dryRunUrls,
+}) {
   const totalMs = finishedAt - startedAt;
   return {
     _schema_version: 1,
@@ -357,10 +366,9 @@ function buildOutputEnvelope({ config, startedAt, finishedAt, discovered, record
       records_ok: records.length,
       records_fail: failures.length,
       ok_rate: discovered.length ? +((records.length / discovered.length) * 100).toFixed(2) : 0,
-      avg_confidence:
-        records.length
-          ? +(records.reduce((a, r) => a + (r.confidence || 0), 0) / records.length).toFixed(3)
-          : 0,
+      avg_confidence: records.length
+        ? +(records.reduce((a, r) => a + (r.confidence || 0), 0) / records.length).toFixed(3)
+        : 0,
       fields_coverage: aggregateCoverage(records),
     },
     failures: failures.slice(0, 500),
@@ -400,7 +408,11 @@ function aggregateCoverage(records) {
     if (r.location?.lat != null && r.location?.lng != null) c.latlng++;
     if (r.rating) c.rating++;
     if (r.metadata?.capacity?.max_total) c.capacity_max++;
-    if (r.metadata?.capacity?.configurations && Object.keys(r.metadata.capacity.configurations).length) c.capacity_configs++;
+    if (
+      r.metadata?.capacity?.configurations &&
+      Object.keys(r.metadata.capacity.configurations).length
+    )
+      c.capacity_configs++;
     if (r.metadata?.amenities?.length) c.amenities_any++;
     if (r.metadata?.restrictions?.length) c.restrictions_any++;
     if (r.photos?.gallery?.length || r.photos?.main_image) c.photos_any++;

@@ -21,9 +21,9 @@ import {
   SITEMAP_MAX_PAGES_DEFAULT,
   ROOM_URL_RE,
   parseRoomUrl,
-} from '../providers/tagvenue/selectors.js';
-import { uniqueStrings, slugify } from '../utils/normalize.js';
-import { readLinesSafe } from '../output/json-writer.js';
+} from "../providers/tagvenue/selectors.js";
+import { uniqueStrings, slugify } from "../utils/normalize.js";
+import { readLinesSafe } from "../output/json-writer.js";
 
 // ─── XML helpers ─────────────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ function extractLocs(xml) {
   const out = [];
   const re = /<loc>\s*([^<]+)\s*<\/loc>/g;
   let m;
-  while ((m = re.exec(String(xml || ''))) !== null) {
+  while ((m = re.exec(String(xml || ""))) !== null) {
     const v = m[1].trim();
     if (v) out.push(v);
   }
@@ -49,7 +49,7 @@ function extractLastmods(xml) {
   const out = [];
   const re = /<lastmod>\s*([^<]+)\s*<\/lastmod>/g;
   let m;
-  while ((m = re.exec(String(xml || ''))) !== null) {
+  while ((m = re.exec(String(xml || ""))) !== null) {
     out.push(m[1].trim());
   }
   return out;
@@ -68,7 +68,7 @@ function extractEntries(xml) {
  * Return true when the XML root element is <sitemapindex> rather than <urlset>.
  */
 function isSitemapIndex(xml) {
-  return /<sitemapindex[\s>]/i.test(String(xml || '').slice(0, 2000));
+  return /<sitemapindex[\s>]/i.test(String(xml || "").slice(0, 2000));
 }
 
 /**
@@ -89,14 +89,14 @@ export async function discoverUrls({ mode, http, robots, config, logger }) {
   const startTime = Date.now();
   let urls = [];
 
-  if (mode === 'urls-file') {
-    if (!config.urlsFile) throw new Error('mode=urls-file requires --urls-file or TV_URLS_FILE');
+  if (mode === "urls-file") {
+    if (!config.urlsFile) throw new Error("mode=urls-file requires --urls-file or TV_URLS_FILE");
     urls = readLinesSafe(config.urlsFile);
     logger?.info?.(`discovery (urls-file): read ${urls.length} lines from ${config.urlsFile}`);
-  } else if (mode === 'search') {
+  } else if (mode === "search") {
     // search mode requires JS pagination — fall back to sitemap with city filter in MVP.
     logger?.warn?.(
-      'mode=search is stubbed in MVP. Falling back to sitemap discovery filtered by city.',
+      "mode=search is stubbed in MVP. Falling back to sitemap discovery filtered by city.",
     );
     urls = await sitemapDiscover({ http, robots, config, logger });
   } else {
@@ -107,9 +107,9 @@ export async function discoverUrls({ mode, http, robots, config, logger }) {
   // Keep only valid /rooms/ URLs and strip fragments / query strings.
   const roomUrls = [];
   for (const raw of urls) {
-    const u = String(raw || '').trim();
+    const u = String(raw || "").trim();
     if (!u) continue;
-    if (ROOM_URL_RE.test(u)) roomUrls.push(u.split('#')[0].split('?')[0]);
+    if (ROOM_URL_RE.test(u)) roomUrls.push(u.split("#")[0].split("?")[0]);
   }
 
   // City filter: match against the city slug embedded in the rooms URL path.
@@ -131,7 +131,7 @@ export async function discoverUrls({ mode, http, robots, config, logger }) {
   const deduped = uniqueStrings(roomUrls);
   const finalUrls = config.limit && config.limit > 0 ? deduped.slice(0, config.limit) : deduped;
 
-  logger?.info?.('discovery complete', {
+  logger?.info?.("discovery complete", {
     mode,
     input_urls: urls.length,
     room_urls: roomUrls.length,
@@ -158,7 +158,7 @@ async function sitemapDiscover({ http, robots, config, logger }) {
   const sinceDate = parseSinceDate(config.sitemapSince);
   const maxPages = Math.max(1, config.sitemapMaxPages ?? SITEMAP_MAX_PAGES_DEFAULT);
 
-  logger?.info?.('sitemap discovery starting', {
+  logger?.info?.("sitemap discovery starting", {
     sinceDate: sinceDate?.toISOString() ?? null,
     maxPages,
   });
@@ -191,9 +191,7 @@ async function sitemapDiscover({ http, robots, config, logger }) {
         logger?.debug?.(`sitemap index resolved rooms group: ${roomsGroupUrl}`);
       }
     } catch (err) {
-      logger?.warn?.(
-        `sitemap index fetch failed (${err.message ?? err}); falling back to default`,
-      );
+      logger?.warn?.(`sitemap index fetch failed (${err.message ?? err}); falling back to default`);
     }
   }
 
@@ -224,7 +222,7 @@ async function sitemapDiscover({ http, robots, config, logger }) {
   logger?.info?.(`sitemap-rooms raw loc entries collected: ${allLocs.length}`);
 
   // ── Step 5: robots.txt allow-check ──────────────────────────────────────
-  const ua = 'TagvenueScraper/1.0 (+https://iqkv.com)';
+  const ua = "TagvenueScraper/1.0 (+https://iqkv.com)";
   const allowed = [];
   let blocked = 0;
   for (const u of allLocs) {
@@ -276,12 +274,11 @@ async function resolveRoomsUrls({ http, rootUrl, sinceDate, maxPages, logger }) 
 
   // If the index itself listed no rooms children, maybe it listed them without the
   // standard naming pattern (edge case). Fall back to all child locs.
-  const pages = (childUrls.length ? childUrls : childEntries.map((e) => e.loc)).slice(
-    0,
-    maxPages,
-  );
+  const pages = (childUrls.length ? childUrls : childEntries.map((e) => e.loc)).slice(0, maxPages);
 
-  logger?.info?.(`rooms sitemapindex lists ${childEntries.length} child(ren); will fetch up to ${pages.length} page(s)`);
+  logger?.info?.(
+    `rooms sitemapindex lists ${childEntries.length} child(ren); will fetch up to ${pages.length} page(s)`,
+  );
 
   const allLocs = [];
   let pagesSkipped = 0;
@@ -315,7 +312,9 @@ async function resolveRoomsUrls({ http, rootUrl, sinceDate, maxPages, logger }) 
     }
 
     const filtered = filterByLastmod(entries, sinceDate);
-    logger?.debug?.(`page ${i + 1}/${pages.length}: ${entries.length} entries, ${filtered.length} pass lastmod filter`);
+    logger?.debug?.(
+      `page ${i + 1}/${pages.length}: ${entries.length} entries, ${filtered.length} pass lastmod filter`,
+    );
     allLocs.push(...filtered.map((e) => e.loc));
   }
 
@@ -344,9 +343,11 @@ function parseSinceDate(value) {
     const n = parseInt(rel[1], 10);
     const unit = rel[2];
     const ms =
-      unit === 'd' ? n * 86_400_000 :
-      unit === 'w' ? n * 7 * 86_400_000 :
-      /* m */        n * 30 * 86_400_000;
+      unit === "d"
+        ? n * 86_400_000
+        : unit === "w"
+          ? n * 7 * 86_400_000
+          : /* m */ n * 30 * 86_400_000;
     return new Date(Date.now() - ms);
   }
 

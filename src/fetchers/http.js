@@ -1,26 +1,31 @@
-import axios from 'axios';
+import axios from "axios";
 
 async function buildProxyAgent(proxyUrl) {
-  const p = String(proxyUrl || '').trim();
+  const p = String(proxyUrl || "").trim();
   if (!p) return { httpAgent: undefined, httpsAgent: undefined };
   // Optional: prefer hpagent if installed.
   try {
-    const mod = await import('hpagent');
+    const mod = await import("hpagent");
     return {
       httpAgent: new mod.HttpProxyAgent({ proxy: p }),
-      httpsAgent: new mod.HttpsProxyAgent({ proxy: p, keepAlive: true, maxSockets: 10, maxFreeSockets: 5 }),
+      httpsAgent: new mod.HttpsProxyAgent({
+        proxy: p,
+        keepAlive: true,
+        maxSockets: 10,
+        maxFreeSockets: 5,
+      }),
     };
   } catch {
     // hpagent not installed → fall back to https-proxy-agent if present, else throw
     try {
-      const mod = await import('https-proxy-agent');
+      const mod = await import("https-proxy-agent");
       const Ctor = mod.HttpsProxyAgent || mod.default;
       const agent = new Ctor(p);
       return { httpAgent: agent, httpsAgent: agent };
     } catch {
       throw new Error(
         'TV_PROXY requires either "hpagent" or "https-proxy-agent" installed. ' +
-          'Run `pnpm add hpagent` or remove proxy config.',
+          "Run `pnpm add hpagent` or remove proxy config.",
       );
     }
   }
@@ -35,7 +40,7 @@ export function createHttpFetcher({
   timeoutMs = 15_000,
   retries = 3,
   proxy = null,
-  accept = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   extraHeaders = {},
 } = {}) {
   const agentPromise = buildProxyAgent(proxy);
@@ -48,14 +53,14 @@ export function createHttpFetcher({
           timeout: options.timeoutMs ?? timeoutMs,
           maxRedirects: 5,
           headers: {
-            'User-Agent': userAgent,
+            "User-Agent": userAgent,
             Accept: options.accept ?? accept,
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-GB,en;q=0.9',
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-GB,en;q=0.9",
             ...extraHeaders,
             ...(options.headers ?? {}),
           },
-          responseType: options.responseType ?? options.isBinary ? 'arraybuffer' : 'text',
+          responseType: (options.responseType ?? options.isBinary) ? "arraybuffer" : "text",
           validateStatus: (s) => s >= 200 && s < 500, // treat 4xx as non-retryable
           ...agents,
         });
@@ -69,7 +74,12 @@ export function createHttpFetcher({
         }
         return res;
       } catch (err) {
-        if (err.retryable || /timeout|socket|econnreset|econnrefused|enotfound|etimedout|certificate|epipe/i.test(err.code || err.message || '')) {
+        if (
+          err.retryable ||
+          /timeout|socket|econnreset|econnrefused|enotfound|etimedout|certificate|epipe/i.test(
+            err.code || err.message || "",
+          )
+        ) {
           if (attemptN < (options.retries ?? retries)) {
             const backoff = 2 ** attemptN * 1000 + Math.floor(Math.random() * 1000);
             await sleep(backoff);
@@ -89,11 +99,11 @@ export function createHttpFetcher({
         url: res.request?.res?.responseUrl ?? url,
         status: res.status,
         headers: res.headers,
-        body: typeof res.data === 'string' ? res.data : Buffer.from(res.data).toString('utf8'),
+        body: typeof res.data === "string" ? res.data : Buffer.from(res.data).toString("utf8"),
       };
     },
     async buffer(url, options) {
-      const res = await get(url, { ...options, responseType: 'arraybuffer', isBinary: true });
+      const res = await get(url, { ...options, responseType: "arraybuffer", isBinary: true });
       return {
         url: res.request?.res?.responseUrl ?? url,
         status: res.status,
@@ -104,7 +114,7 @@ export function createHttpFetcher({
     async xml(url, options) {
       return this.text(url, {
         ...options,
-        accept: 'application/xml,text/xml,application/xhtml+xml;q=0.9,*/*;q=0.1',
+        accept: "application/xml,text/xml,application/xhtml+xml;q=0.9,*/*;q=0.1",
       });
     },
   };

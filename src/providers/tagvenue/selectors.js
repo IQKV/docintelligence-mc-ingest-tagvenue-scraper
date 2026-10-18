@@ -1,7 +1,7 @@
-import * as cheerio from 'cheerio';
-import path from 'node:path';
+import * as cheerio from "cheerio";
+import path from "node:path";
 
-export const BASE_URL = 'https://www.tagvenue.com';
+export const BASE_URL = "https://www.tagvenue.com";
 export const SITEMAP_INDEX_URL = `${BASE_URL}/sitemap.xml`;
 
 // Tagvenue uses paginated sitemaps: sitemap-rooms-1.xml, sitemap-rooms-2.xml, …
@@ -25,8 +25,13 @@ export const LD_SELECTOR = 'script[type="application/ld+json"]';
 // DOM selectors (heuristic — based on 115 feature-like + 89 spec-like nodes observed on detail page)
 // They're organized as buckets; each bucket has many selectors so we're robust to class renames.
 export const DOM_SELECTORS = {
-  title: ['title'],
-  h1_name: ['h1', 'h1[class*="room-title"]', '[data-testid*="room-name"]', '[class*="room-detail__title"]'],
+  title: ["title"],
+  h1_name: [
+    "h1",
+    'h1[class*="room-title"]',
+    '[data-testid*="room-name"]',
+    '[class*="room-detail__title"]',
+  ],
   description_long: [
     '[class*="description"] p',
     '[data-testid*="description"]',
@@ -67,7 +72,12 @@ export const DOM_SELECTORS = {
     '[class*="host"] [class*="rate"]',
   ],
   // Features / amenities / specs tables (89 spec-like elements)
-  tables_all: ['[class*="spec"] table', '[class*="detail"] table', '[class*="information"] table', 'table'],
+  tables_all: [
+    '[class*="spec"] table',
+    '[class*="detail"] table',
+    '[class*="information"] table',
+    "table",
+  ],
   features_unstructured: [
     '[class*="feature"] li',
     '[class*="amenity"] li',
@@ -128,11 +138,11 @@ export const ROOM_URL_RE =
   /^https?:\/\/(www\.)?tagvenue\.com\/rooms\/(?<city>[^/]+)\/(?<room_id>\d+)\/(?<venue_slug>[^/]+)(\/(?<room_slug>[^/?#]+))?/;
 
 export function parseRoomUrl(url) {
-  const m = String(url || '').match(ROOM_URL_RE);
+  const m = String(url || "").match(ROOM_URL_RE);
   if (!m) return null;
   const g = m.groups || {};
   return {
-    url: String(url).split('#')[0].split('?')[0],
+    url: String(url).split("#")[0].split("?")[0],
     city: g.city || null,
     room_id: parseInt(g.room_id, 10),
     venue_slug: g.venue_slug || null,
@@ -145,11 +155,11 @@ export const VENUE_URL_RE =
   /^https?:\/\/(www\.)?tagvenue\.com\/venue[s]?\/(?<city>[^/]+)\/(?<venue_id>\d+)\/(?<venue_slug>[^/?#]+)/;
 
 export function parseVenueUrl(url) {
-  const m = String(url || '').match(VENUE_URL_RE);
+  const m = String(url || "").match(VENUE_URL_RE);
   if (!m) return null;
   const g = m.groups || {};
   return {
-    url: String(url).split('#')[0].split('?')[0],
+    url: String(url).split("#")[0].split("?")[0],
     city: g.city || null,
     venue_id: parseInt(g.venue_id, 10),
     venue_slug: g.venue_slug || null,
@@ -158,15 +168,15 @@ export function parseVenueUrl(url) {
 
 export function cheerioAttrOrText($, selectors) {
   for (const raw of selectors) {
-    const [selector, attr] = raw.split('@');
+    const [selector, attr] = raw.split("@");
     const nodes = $(selector);
     if (!nodes.length) continue;
     if (attr) {
       const v = nodes.first().attr(attr);
-      if (v != null && String(v).trim() !== '') return v.trim();
+      if (v != null && String(v).trim() !== "") return v.trim();
     } else {
       const v = nodes.first().text();
-      if (v != null && String(v).trim() !== '') return v.trim();
+      if (v != null && String(v).trim() !== "") return v.trim();
     }
   }
   return null;
@@ -178,11 +188,11 @@ export function cheerioAllText($, selectors, opts = {}) {
   const dedupe = opts.dedupe ?? true;
   const result = [];
   for (const selector of selectors) {
-    if (selector.includes('@')) continue;
+    if (selector.includes("@")) continue;
     try {
       $(selector).each((_i, el) => {
         if (result.length >= limit) return false;
-        const text = $(el).text().replace(/\s+/g, ' ').trim();
+        const text = $(el).text().replace(/\s+/g, " ").trim();
         if (!text) return true;
         if (dedupe) {
           const k = text.toLowerCase();
@@ -204,9 +214,9 @@ export function cheerioTableRows($, tableSelectors) {
   for (const sel of tableSelectors) {
     try {
       $(sel).each((_i, table) => {
-        $('tr', table).each((_j, tr) => {
-          const th = $('th', tr).first().text().replace(/\s+/g, ' ').trim();
-          const td = $('td', tr).first().text().replace(/\s+/g, ' ').trim();
+        $("tr", table).each((_j, tr) => {
+          const th = $("th", tr).first().text().replace(/\s+/g, " ").trim();
+          const td = $("td", tr).first().text().replace(/\s+/g, " ").trim();
           if (th && td) rows.push({ key: th, value: td });
         });
       });
@@ -220,7 +230,7 @@ export function extractImageSrcset($, selectors) {
   for (const sel of selectors) {
     try {
       $(sel).each((_i, img) => {
-        const src = $(img).attr('src') || $(img).attr('data-src') || $(img).attr('data-lazy-src');
+        const src = $(img).attr("src") || $(img).attr("data-src") || $(img).attr("data-lazy-src");
         if (src) out.push(src);
       });
     } catch {}
@@ -228,12 +238,12 @@ export function extractImageSrcset($, selectors) {
   return [...new Set(out)];
 }
 
-export function basenameFromUrl(url, ext = '') {
+export function basenameFromUrl(url, ext = "") {
   try {
     const p = new URL(url).pathname;
     return path.basename(p, ext);
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -241,7 +251,7 @@ export function ldBlocksFromHtml(html) {
   const $ = cheerio.load(html);
   const arr = [];
   $(LD_SELECTOR).each((_i, el) => {
-    const raw = $(el).html() || '';
+    const raw = $(el).html() || "";
     if (!raw.trim()) return;
     try {
       const parsed = JSON.parse(raw.trim());
@@ -254,7 +264,9 @@ export function ldBlocksFromHtml(html) {
         const re = /\{[\s\S]*?"@(context|type)"[\s\S]*?\}/g;
         let m;
         while ((m = re.exec(raw)) !== null) {
-          try { arr.push(JSON.parse(m[0])); } catch {}
+          try {
+            arr.push(JSON.parse(m[0]));
+          } catch {}
         }
       } catch {}
     }
@@ -265,8 +277,8 @@ export function ldBlocksFromHtml(html) {
 export function findFirstLdByType(blocks, typeLike) {
   const wantType = String(typeLike).toLowerCase();
   for (const b of blocks) {
-    if (!b || typeof b !== 'object') continue;
-    const types = Array.isArray(b['@type']) ? b['@type'] : [b['@type']];
+    if (!b || typeof b !== "object") continue;
+    const types = Array.isArray(b["@type"]) ? b["@type"] : [b["@type"]];
     if (types.some((t) => String(t).toLowerCase().includes(wantType))) return b;
   }
   return null;
@@ -276,8 +288,8 @@ export function findAllLdByType(blocks, typeLike) {
   const wantType = String(typeLike).toLowerCase();
   const out = [];
   for (const b of blocks) {
-    if (!b || typeof b !== 'object') continue;
-    const types = Array.isArray(b['@type']) ? b['@type'] : [b['@type']];
+    if (!b || typeof b !== "object") continue;
+    const types = Array.isArray(b["@type"]) ? b["@type"] : [b["@type"]];
     if (types.some((t) => String(t).toLowerCase().includes(wantType))) out.push(b);
   }
   return out;
