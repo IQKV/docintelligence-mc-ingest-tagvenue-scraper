@@ -26,8 +26,14 @@ RUN \
 # ================= Stage 2: slim runtime =================
 FROM node:22-alpine AS runtime-slim
 
+# Injected by CI as --build-arg (commit SHA / branch-or-tag).
+ARG VCS_REFERENCE
+ARG BUILD_VERSION_REFERENCE
+
 ENV NODE_ENV=production
 ENV TV_OUTPUT_DIR=/data
+ENV APPLICATION_VCS_REFERENCE=${VCS_REFERENCE}
+ENV APPLICATION_BUILD_VERSION=${BUILD_VERSION_REFERENCE}
 
 WORKDIR /app
 
@@ -52,9 +58,15 @@ CMD ["--help"]
 # ================= Stage 3: with-browser runtime (opt-in) =================
 FROM mcr.microsoft.com/playwright:v1.45.0-jammy AS runtime-with-browser
 
+# Injected by CI as --build-arg (commit SHA / branch-or-tag).
+ARG VCS_REFERENCE
+ARG BUILD_VERSION_REFERENCE
+
 ENV NODE_ENV=production
 ENV TV_OUTPUT_DIR=/data
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV APPLICATION_VCS_REFERENCE=${VCS_REFERENCE}
+ENV APPLICATION_BUILD_VERSION=${BUILD_VERSION_REFERENCE}
 
 WORKDIR /app
 
