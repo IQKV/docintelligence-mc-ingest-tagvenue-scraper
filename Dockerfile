@@ -59,7 +59,10 @@ ENTRYPOINT ["node", "bin/scrape.js"]
 CMD ["--help"]
 
 # ================= Stage 3: with-browser runtime (opt-in) =================
-FROM mcr.microsoft.com/playwright:v1.45.0-jammy AS runtime-with-browser
+# Tag must match the playwright version resolved in pnpm-lock.yaml (1.64.1),
+# otherwise the baked browser builds do not match what playwright-core expects.
+# This tag ships Node 24, which satisfies engines.node >= 22.13.0.
+FROM mcr.microsoft.com/playwright:v1.64.1-jammy AS runtime-with-browser
 
 # Injected by CI as --build-arg (commit SHA / branch-or-tag).
 ARG VCS_REFERENCE
@@ -73,20 +76,22 @@ ENV APPLICATION_BUILD_VERSION=${BUILD_VERSION_REFERENCE}
 
 WORKDIR /app
 
+# The base image already ships "pwuser" with uid/gid 1000 (it runs
+# "adduser pwuser" over ubuntu:jammy), so reuse it rather than creating another
+# account. The uid/gid is what the /data bind mount depends on, and it matches
+# the slim stage's "app" user — only the name differs.
 RUN \
-  groupadd -g 1000 app && \
-  useradd -u 1000 -g app -m -s /usr/sbin/nologin app && \
   mkdir -p /data && \
-  chown -R app:app /app /data
+  chown -R pwuser:pwuser /app /data
 
-COPY --from=deps --chown=app:app /app/node_modules ./node_modules
-COPY --chown=app:app bin ./bin
-COPY --chown=app:app src ./src
-COPY --chown=app:app package.json ./package.json
+COPY --from=deps --chown=pwuser:pwuser /app/node_modules ./node_modules
+COPY --chown=pwuser:pwuser bin ./bin
+COPY --chown=pwuser:pwuser src ./src
+COPY --chown=pwuser:pwuser package.json ./package.json
 
 VOLUME ["/data"]
 
-USER app
+USER pwuser
 
 ENTRYPOINT ["node", "bin/scrape.js"]
 CMD ["--help"]
