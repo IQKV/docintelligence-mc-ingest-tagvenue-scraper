@@ -7,6 +7,7 @@ import {
   ASSETS_DIR_NAME,
   VENUE_RECORD_FILE,
   downloadVenueAssets,
+  ensureIngestRoot,
   ingestRoot,
   venueDirFor,
   venueDirName,
@@ -82,5 +83,66 @@ test("downloadVenueAssets counts a failed photo without dropping the venue", asy
   });
 
   assert.deepEqual(stats, { downloaded: 0, skipped: 0, failed: 1 });
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("the whole mc-ingest tree is writable by anyone", async () => {
+  const root = tmpRoot();
+  const outputDir = path.join(root, "data");
+  const ingestDir = ensureIngestRoot(outputDir);
+  const venueDir = venueDirFor(ingestDir, 7);
+  const assetsDir = path.posix.join(venueDir, ASSETS_DIR_NAME);
+  const http = { buffer: async (url) => ({ url, status: 200, buffer: Buffer.from("pixels") }) };
+
+  await downloadVenueAssets({
+    http,
+    venueDir,
+    ingestDir,
+    assets: [{ file: "a.jpg", url: "https://cdn.test/a.jpg", transform: "widen-1680-noupsize" }],
+  });
+  writeJsonFile(path.posix.join(venueDir, VENUE_RECORD_FILE), { name: "x" }, 2, ingestDir);
+
+  const recordPath = path.posix.join(venueDir, VENUE_RECORD_FILE);
+  const assetPath = path.posix.join(assetsDir, "a.jpg");
+  const paths = { ingestDir, venueDir, assetsDir, recordPath, assetPath };
+
+  for (const [label, p] of Object.entries(paths)) {
+    assert.ok((fs.statSync(p).mode & 0o222) === 0o222, `${label} must be writable by anyone`);
+  }
+
+  // Windows only tracks a read-only bit, so the exact mode is asserted on POSIX.
+  if (process.platform !== "win32") {
+    for (const label of ["ingestDir", "venueDir", "assetsDir"]) {
+      assert.equal(fs.statSync(paths[label]).mode & 0o777, 0o777, label);
+    }
+    for (const label of ["recordPath", "assetPath"]) {
+      assert.equal(fs.statSync(paths[label]).mode & 0o777, 0o666, label);
+    }
+  }
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("assets written before the open-permissions rule are opened on the next run", async () => {
+  const root = tmpRoot();
+  const outputDir = path.join(root, "data");
+  const ingestDir = ensureIngestRoot(outputDir);
+  const venueDir = venueDirFor(ingestDir, 7);
+  const assetsDir = path.posix.join(venueDir, ASSETS_DIR_NAME);
+  const target = path.posix.join(assetsDir, "a.jpg");
+  const http = { buffer: async (url) => ({ url, status: 200, buffer: Buffer.from("pixels") }) };
+  const assets = [
+    { file: "a.jpg", url: "https://cdn.test/a.jpg", transform: "widen-1680-noupsize" },
+  ];
+
+  await downloadVenueAssets({ http, venueDir, ingestDir, assets });
+  fs.chmodSync(target, 0o644);
+
+  // Second run skips the download but still fixes the mode.
+  assert.deepEqual(await downloadVenueAssets({ http, venueDir, ingestDir, assets }), {
+    downloaded: 0,
+    skipped: 1,
+    failed: 0,
+  });
+  assert.equal(fs.statSync(target).mode & 0o777, 0o666);
   fs.rmSync(root, { recursive: true, force: true });
 });

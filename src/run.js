@@ -8,11 +8,10 @@ import { extractTagvenueRecord } from "./providers/tagvenue/extractor.js";
 import { normalizeTagvenueToCanonical } from "./providers/tagvenue/normalizer.js";
 import { createConcurrencyQueue } from "./utils/concurrency.js";
 import { createRateLimiter } from "./utils/rate-limit.js";
-import { ensureDir } from "./output/json-writer.js";
 import {
   VENUE_RECORD_FILE,
   downloadVenueAssets,
-  ingestRoot,
+  ensureIngestRoot,
   venueDirFor,
   venueDirName,
   writeJsonFile,
@@ -41,9 +40,9 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
   });
 
   // Everything lands under <outputDir>/mc-ingest/<tagvenue-id>/, so the host only
-  // has to mount one directory and the layout is the same on every run.
-  const rootDir = ingestRoot(config.outputDir);
-  ensureDir(rootDir);
+  // has to mount one directory and the layout is the same on every run. The tree
+  // is created world-writable so other containers can read and write it.
+  const rootDir = ensureIngestRoot(config.outputDir);
 
   logger.info("docintelligence-mc-ingest-tagvenue-scraper starting", {
     mode: config.mode,
@@ -199,12 +198,18 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
         http,
         venueDir,
         assets,
+        ingestDir: rootDir,
         logger: itemLogger,
         timeoutMs: config.timeoutMs,
         retries: config.retries,
         signal: abortController.signal,
       });
-      const write = writeJsonFile(path.posix.join(venueDir, VENUE_RECORD_FILE), normalized);
+      const write = writeJsonFile(
+        path.posix.join(venueDir, VENUE_RECORD_FILE),
+        normalized,
+        2,
+        rootDir,
+      );
 
       itemLogger.info("stored", {
         venue: venueDirName(venueId),
