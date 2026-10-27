@@ -569,6 +569,7 @@ pnpm formatter:write
 
 # Type check (JS via JSDoc + jsconfig.json)
 pnpm typecheck
+
 ```
 
 Commit messages follow conventional commits via commitlint/husky, same as the rest of the monorepo. See `COMMIT_CONVENTION.md` in `.github/`.
