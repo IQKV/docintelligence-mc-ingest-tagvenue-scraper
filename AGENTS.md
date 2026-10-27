@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**docintelligence-mc-ingest-tagvenue-scraper** — CLI scraper for Tagvenue.com. Crawls venue and room listings via sitemap discovery and HTTP fetching, extracts structured data, normalises it into canonical master-venue-compatible JSON, and writes it for ingestion into the Shortlisty Intelligence venue registry.
+**docintelligence-mc-ingest-tagvenue-scraper** — CLI scraper for Tagvenue.com. Crawls venue listings via sitemap discovery and HTTP fetching, extracts structured data, normalises it into one canonical master-venue-compatible record per venue, and writes each record into its own folder for ingestion into the Shortlisty Intelligence venue registry.
 
 **Key characteristics:**
 
@@ -10,7 +10,7 @@
 - CLI entry via `src/cli.js`; main pipeline in `src/run.js`
 - Provider-specific logic isolated under `src/providers/tagvenue/` (extractor, normalizer, selectors)
 - Rate-limited HTTP fetching (`src/utils/rate-limit.js`), concurrency control (`src/utils/concurrency.js`)
-- Output: JSON files written by `src/output/json-writer.js`
+- Output: one folder per venue — `<outputDir>/mc-ingest/tagvenue-<venue_id>/venue.json` plus a sibling `assets/` folder for photos — written by `src/output/venue-store.js`
 
 ## Project Structure
 
@@ -26,7 +26,8 @@ src/
 │   ├── http.js                    # Rate-limited HTTP fetch
 │   └── robots.js                  # robots.txt parsing
 ├── output/
-│   ├── json-writer.js             # Writes normalised JSON output
+│   ├── venue-store.js             # mc-ingest tree: tagvenue-<venue_id>/venue.json + assets/
+│   ├── json-writer.js             # Low-level fs helpers (ensureDir, safe reads)
 │   └── logger.js                  # Logging utilities
 ├── providers/tagvenue/
 │   ├── extractor.js               # DOM extraction from fetched HTML
@@ -109,14 +110,14 @@ Format: `type(scope): subject`
 - Types: `feat`, `fix`, `improvement`, `refactor`, `docs`, `test`, `chore`, `ci`, `perf`, `revert`
 - Scope: affected module (e.g., `extractor`, `normalizer`, `selectors`, `http`, `sitemap`, `output`, `cli`, `deps`)
 - For `fix`: symptom + trigger, not the code change
-  - ✅ `fix(selectors): room capacity not extracted after Tagvenue layout update`
+  - ✅ `fix(selectors): venue capacity not extracted after Tagvenue layout update`
   - ❌ `fix(selectors): update CSS selector for capacity`
 
 Examples:
 
 - `feat(normalizer): add cuisine_type field to canonical venue schema`
 - `fix(http): fetch silently drops venues when rate limit returns 429`
-- `refactor(extractor): split venue and room extraction into separate functions`
+- `refactor(normalizer): fold room-level fields into the venue record`
 - `chore(deps): update playwright scraping dependencies`
 
 ## Evaluation

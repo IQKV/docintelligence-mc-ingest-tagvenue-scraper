@@ -7,31 +7,34 @@ import {
   CANONICAL_SCHEMA_VERSION,
 } from "../src/providers/tagvenue/normalizer.js";
 
-const ROOM_URL =
-  "https://www.tagvenue.com/rooms/london/25426/the-last-talisman/mala-madre-events-space";
+const VENUE_URL = "https://www.tagvenue.com/venues/london/11896/the-last-talisman";
 
-const HTML = readFileSync(new URL("./fixtures/tagvenue-room.html", import.meta.url), "utf8");
+const HTML = readFileSync(new URL("./fixtures/tagvenue-venue.html", import.meta.url), "utf8");
 
 const NOW = new Date("2026-01-01T00:00:00.000Z");
 
 function normalize() {
-  return normalizeTagvenueToCanonical(extractTagvenueRecord({ url: ROOM_URL, html: HTML }), NOW);
+  return normalizeTagvenueToCanonical(extractTagvenueRecord({ url: VENUE_URL, html: HTML }), NOW);
 }
 
 test("normalizer emits the canonical identity envelope", () => {
   const entry = normalize();
   assert.equal(entry._schema_version, CANONICAL_SCHEMA_VERSION);
-  assert.equal(entry.external_id, "tagvenue:room:25426");
+  assert.equal(entry.external_id, "tagvenue:venue:11896");
   assert.equal(entry.external_source, "tagvenue");
   assert.equal(entry.source, "web_scrape");
-  assert.equal(entry.source_url, ROOM_URL);
+  assert.equal(entry.source_url, VENUE_URL);
+  assert.deepEqual(entry.tagvenue_ids, {
+    venue_id: 11896,
+    venue_slug: "the-last-talisman",
+    city_slug: "london",
+  });
 });
 
-test("normalizer maps name, aliases, venue and address", () => {
+test("normalizer maps name, aliases and address", () => {
   const entry = normalize();
-  assert.equal(entry.name, "Mala Madre Events Space at The Last Talisman");
-  assert.deepEqual(entry.aliases, ["Mala Madre Events Space"]);
-  assert.equal(entry.venue_name, "The Last Talisman");
+  assert.equal(entry.name, "The Last Talisman");
+  assert.deepEqual(entry.aliases, ["Rooms & Event Spaces at The Last Talisman"]);
   assert.equal(entry.address, "171-173 Bermondsey Street, London, SE1 3UW, GB");
   assert.equal(entry.city, "London");
   assert.equal(entry.country_code, "GB");
@@ -59,13 +62,26 @@ test("normalizer maps capacity, pricing and venue type into metadata", () => {
   assert.equal(meta.logistics.natural_light, true);
 });
 
-test("normalizer maps rating, photos, station and contacts", () => {
+test("normalizer lists one asset per photo, keyed by a predictable file name", () => {
+  const entry = normalize();
+  assert.equal(entry.photos.count, 2);
+  assert.deepEqual(
+    entry.photos.gallery.map((a) => a.file),
+    ["11896-the-last-talisman-venue.jpg", "5-gladstone-library-room.jpg"],
+  );
+  assert.equal(entry.photos.gallery[0].transform, "widen-1680-noupsize");
+  assert.equal(
+    entry.photos.gallery[1].url,
+    "https://www.tagvenue.com/resize/ab/cd/widen-1680-noupsize;5-gladstone-library-room.jpg",
+  );
+  assert.equal(entry.photos.main_image.file, "11896-the-last-talisman-venue.jpg");
+});
+
+test("normalizer maps rating, station and contacts", () => {
   const entry = normalize();
   assert.equal(entry.rating.value, 4.7);
   assert.equal(entry.rating.review_count, 588);
   assert.equal(entry.rating.source, "tagvenue");
-  assert.equal(entry.photos.main_image, "https://example.com/main.jpg");
-  assert.ok(entry.photos.gallery.includes("https://example.com/main.jpg"));
   assert.deepEqual(entry.nearest_station, { name: "London Bridge Station", distance_miles: 0.5 });
   assert.deepEqual(entry.metadata.contacts, [{ name: "Dovile S.", role: "Venue Manager" }]);
   assert.equal(entry.company.manager_name, "Dovile S.");
@@ -81,5 +97,6 @@ test("normalizer maps reviews and provenance", () => {
   assert.equal(entry.scrape_run.at, NOW.toISOString());
   assert.equal(entry.scrape_run.fetcher, "http");
   assert.equal(entry.scrape_run.coverage.has_json_ld, true);
-  assert.equal(entry.confidence, 0.82);
+  assert.equal(entry.scrape_run.coverage.gallery_count, 2);
+  assert.equal(entry.confidence, 0.85);
 });

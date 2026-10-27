@@ -1,6 +1,5 @@
 import * as cheerio from "cheerio";
 import {
-  BASE_URL,
   DOM_SELECTORS,
   cheerioAttrOrText,
   cheerioAllText,
@@ -9,7 +8,7 @@ import {
   findFirstLdByType,
   findAllLdByType,
   ldAdditionalPropertyMap,
-  parseRoomUrl,
+  parseVenueUrl,
   extractImageSrcset,
 } from "./selectors.js";
 
@@ -32,7 +31,7 @@ export function extractTagvenueRecord({
   logger = { debug: NOOP, info: NOOP, warn: NOOP },
 }) {
   const startedAt = Date.now();
-  const parsed = parseRoomUrl(url);
+  const parsed = parseVenueUrl(url);
   const fallbackUrl = parsed?.url || String(url).split("?")[0].split("#")[0];
 
   const $ = cheerio.load(html, { xmlMode: false });
@@ -235,7 +234,7 @@ export function extractTagvenueRecord({
   result._scrape.confidence = Math.min(1, score);
 
   logger.debug?.("extracted record", {
-    roomId: parsed?.room_id ?? null,
+    venueId: parsed?.venue_id ?? null,
     confidence: result._scrape.confidence,
     ld: !!result.ld,
     features: featuresList.length,

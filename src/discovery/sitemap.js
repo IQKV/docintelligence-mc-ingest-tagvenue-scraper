@@ -3,13 +3,13 @@
  *
  * Discovery pipeline (sitemap mode):
  *
- *   1. robots.txt  → look for a Sitemap: directive pointing to a rooms sitemap
+ *   1. robots.txt  → look for a Sitemap: directive pointing to a venues sitemap
  *                    (the live robots.txt declares none, so this rarely fires)
- *   2. /sitemap.xml (sitemapindex) → find the rooms group entry
- *   3. rooms group URL → normally a flat <urlset> with ~24k room URLs. A
+ *   2. /sitemap.xml (sitemapindex) → find the venues group entry
+ *   3. venues group URL → normally a flat <urlset> with ~10k venue URLs. A
  *                        <sitemapindex> listing paginated pages is still handled
- *                        (sitemap-rooms-1, sitemap-rooms-2, …) in case the group
- *                        is split up later.
+ *                        (sitemap-venues-1, sitemap-venues-2, …) in case the
+ *                        group is split up later.
  *   4. extract <loc> entries, apply the lastmod filter
  *   5. robots.txt allow-check on every collected URL
  *
@@ -20,11 +20,11 @@
 
 import {
   SITEMAP_INDEX_URL,
-  DEFAULT_ROOMS_SITEMAP_URL,
-  ROOMS_SITEMAP_RE,
+  DEFAULT_VENUES_SITEMAP_URL,
+  VENUES_SITEMAP_RE,
   SITEMAP_MAX_PAGES_DEFAULT,
-  ROOM_URL_RE,
-  parseRoomUrl,
+  VENUE_URL_RE,
+  parseVenueUrl,
 } from "../providers/tagvenue/selectors.js";
 import { uniqueStrings, slugify } from "../utils/normalize.js";
 import { readLinesSafe } from "../output/json-writer.js";
@@ -108,37 +108,37 @@ export async function discoverUrls({ mode, http, robots, config, logger }) {
     urls = await sitemapDiscover({ http, robots, config, logger });
   }
 
-  // Keep only valid /rooms/ URLs and strip fragments / query strings.
-  const roomUrls = [];
+  // Keep only valid /venues/ URLs and strip fragments / query strings.
+  const venueUrls = [];
   for (const raw of urls) {
     const u = String(raw || "").trim();
     if (!u) continue;
-    if (ROOM_URL_RE.test(u)) roomUrls.push(u.split("#")[0].split("?")[0]);
+    if (VENUE_URL_RE.test(u)) venueUrls.push(u.split("#")[0].split("?")[0]);
   }
 
-  // City filter: match against the city slug embedded in the rooms URL path.
+  // City filter: match against the city slug embedded in the venue URL path.
   if (config.city) {
     const want = slugify(config.city);
-    const before = roomUrls.length;
-    const filtered = roomUrls.filter((u) => {
-      const parsed = parseRoomUrl(u);
+    const before = venueUrls.length;
+    const filtered = venueUrls.filter((u) => {
+      const parsed = parseVenueUrl(u);
       if (!parsed) return false;
       const slug = slugify(parsed.city);
       return slug.includes(want) || want.includes(slug);
     });
     logger?.info?.(`city filter (${config.city}) reduced ${before} → ${filtered.length}`);
-    roomUrls.length = 0;
-    roomUrls.push(...filtered);
+    venueUrls.length = 0;
+    venueUrls.push(...filtered);
   }
 
   // Dedup + limit.
-  const deduped = uniqueStrings(roomUrls);
+  const deduped = uniqueStrings(venueUrls);
   const finalUrls = config.limit && config.limit > 0 ? deduped.slice(0, config.limit) : deduped;
 
   logger?.info?.("discovery complete", {
     mode,
     input_urls: urls.length,
-    room_urls: roomUrls.length,
+    venue_urls: venueUrls.length,
     deduped: deduped.length,
     final: finalUrls.length,
     ms: Date.now() - startTime,
@@ -154,8 +154,8 @@ export async function discoverUrls({ mode, http, robots, config, logger }) {
  *
  *   Step 1 — robots.txt hint
  *   Step 2 — sitemap index (/sitemap.xml)
- *   Step 3 — resolve the rooms group (may be sitemapindex or urlset)
- *   Step 4 — paginated pages (sitemap-rooms-1.xml … sitemap-rooms-N.xml)
+ *   Step 3 — resolve the venues group (may be sitemapindex or urlset)
+ *   Step 4 — paginated pages (sitemap-venues-1 … sitemap-venues-N)
  *   Step 5 — robots.txt allow-check on all collected URLs
  */
 async function sitemapDiscover({ http, robots, config, logger }) {
@@ -168,31 +168,31 @@ async function sitemapDiscover({ http, robots, config, logger }) {
   });
 
   // ── Step 1: robots.txt hint ──────────────────────────────────────────────
-  let roomsGroupUrl = null;
+  let groupUrl = null;
   try {
     const robotsSitemaps = (await robots?.getSitemaps?.()) ?? [];
-    // Prefer an explicit rooms sitemap reference in robots.txt
-    const robotsRoomsHint = robotsSitemaps.find((u) => ROOMS_SITEMAP_RE.test(u));
-    if (robotsRoomsHint) {
-      roomsGroupUrl = robotsRoomsHint;
-      logger?.debug?.(`robots.txt provided rooms sitemap hint: ${roomsGroupUrl}`);
+    // Prefer an explicit venues sitemap reference in robots.txt
+    const robotsHint = robotsSitemaps.find((u) => VENUES_SITEMAP_RE.test(u));
+    if (robotsHint) {
+      groupUrl = robotsHint;
+      logger?.debug?.(`robots.txt provided venues sitemap hint: ${groupUrl}`);
     }
   } catch (err) {
     logger?.debug?.(`robots.txt lookup failed (${err.message ?? err}); continuing`);
   }
 
   // ── Step 2: sitemap index (/sitemap.xml) ────────────────────────────────
-  if (!roomsGroupUrl) {
+  if (!groupUrl) {
     try {
       const idxRes = await http.xml(SITEMAP_INDEX_URL, { timeoutMs: 20_000, retries: 3 });
       // A 4xx/5xx body is an error page, not a sitemap — surface it instead of
       // parsing it into zero entries.
       if (idxRes.status >= 400) throw new Error(`HTTP ${idxRes.status}`);
       const entries = extractEntries(idxRes.body);
-      const roomsEntry = entries.find((e) => ROOMS_SITEMAP_RE.test(e.loc));
-      if (roomsEntry) {
-        roomsGroupUrl = roomsEntry.loc;
-        logger?.debug?.(`sitemap index resolved rooms group: ${roomsGroupUrl}`);
+      const venuesEntry = entries.find((e) => VENUES_SITEMAP_RE.test(e.loc));
+      if (venuesEntry) {
+        groupUrl = venuesEntry.loc;
+        logger?.debug?.(`sitemap index resolved venues group: ${groupUrl}`);
       }
     } catch (err) {
       logger?.warn?.(`sitemap index fetch failed (${err.message ?? err}); falling back to default`);
@@ -200,30 +200,31 @@ async function sitemapDiscover({ http, robots, config, logger }) {
   }
 
   // ── Step 3: fall back to well-known default ──────────────────────────────
-  if (!roomsGroupUrl) {
-    roomsGroupUrl = DEFAULT_ROOMS_SITEMAP_URL;
-    logger?.info?.(`using default rooms sitemap URL: ${roomsGroupUrl}`);
+  if (!groupUrl) {
+    groupUrl = DEFAULT_VENUES_SITEMAP_URL;
+    logger?.info?.(`using default venues sitemap URL: ${groupUrl}`);
   }
 
-  // ── Step 4: resolve the rooms group — one or two levels deep ────────────
+  // ── Step 4: resolve the venues group — one or two levels deep ───────────
   //
   // Tagvenue structure (observed on the live site, 2026-10):
-  //   /sitemap-rooms        → flat <urlset> with ~24k room detail URLs
+  //   /sitemap-venues        → flat <urlset> with ~10k venue detail URLs
   //
   // The paginated shape below is handled too, so the group keeps working if
   // Tagvenue ever splits it:
-  //   /sitemap-rooms        → <sitemapindex> listing sitemap-rooms-1 … sitemap-rooms-N
-  //   /sitemap-rooms-1      → <urlset> with <loc> entries for room detail pages
+  //   /sitemap-venues        → <sitemapindex> listing sitemap-venues-1 … -N
+  //   /sitemap-venues-1      → <urlset> with <loc> entries for venue pages
 
-  const allLocs = await resolveRoomsUrls({
+  const allLocs = await resolveGroupUrls({
     http,
-    rootUrl: roomsGroupUrl,
+    rootUrl: groupUrl,
+    sitemapRe: VENUES_SITEMAP_RE,
     sinceDate,
     maxPages,
     logger,
   });
 
-  logger?.info?.(`sitemap-rooms raw loc entries collected: ${allLocs.length}`);
+  logger?.info?.(`sitemap-venues raw loc entries collected: ${allLocs.length}`);
 
   // ── Step 5: robots.txt allow-check ──────────────────────────────────────
   const ua = "TagvenueScraper/1.0 (+https://iqkv.com)";
@@ -256,7 +257,7 @@ async function sitemapDiscover({ http, robots, config, logger }) {
  *
  * Returns a flat array of all <loc> strings.
  */
-async function resolveRoomsUrls({ http, rootUrl, sinceDate, maxPages, logger }) {
+async function resolveGroupUrls({ http, rootUrl, sitemapRe, sinceDate, maxPages, logger }) {
   let rootXml;
   try {
     const res = await http.xml(rootUrl, { timeoutMs: 60_000, retries: 3 });
@@ -265,26 +266,26 @@ async function resolveRoomsUrls({ http, rootUrl, sinceDate, maxPages, logger }) 
     if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
     rootXml = res.body;
   } catch (err) {
-    throw new Error(`Failed to fetch rooms sitemap root (${rootUrl}): ${err.message ?? err}`);
+    throw new Error(`Failed to fetch sitemap root (${rootUrl}): ${err.message ?? err}`);
   }
 
   if (!isSitemapIndex(rootXml)) {
     // Already a urlset — single flat sitemap (or a numbered page passed directly).
     const entries = extractEntries(rootXml);
-    logger?.debug?.(`rooms sitemap is a urlset with ${entries.length} entries`);
+    logger?.debug?.(`sitemap group is a urlset with ${entries.length} entries`);
     return filterByLastmod(entries, sinceDate).map((e) => e.loc);
   }
 
   // It's a sitemapindex — collect all child page URLs.
   const childEntries = extractEntries(rootXml);
-  const childUrls = childEntries.map((e) => e.loc).filter((u) => ROOMS_SITEMAP_RE.test(u));
+  const childUrls = childEntries.map((e) => e.loc).filter((u) => sitemapRe.test(u));
 
-  // If the index itself listed no rooms children, maybe it listed them without the
-  // standard naming pattern (edge case). Fall back to all child locs.
+  // If the index itself listed no matching children, maybe it listed them without
+  // the standard naming pattern (edge case). Fall back to all child locs.
   const pages = (childUrls.length ? childUrls : childEntries.map((e) => e.loc)).slice(0, maxPages);
 
   logger?.info?.(
-    `rooms sitemapindex lists ${childEntries.length} child(ren); will fetch up to ${pages.length} page(s)`,
+    `sitemapindex lists ${childEntries.length} child(ren); will fetch up to ${pages.length} page(s)`,
   );
 
   const allLocs = [];

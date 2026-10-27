@@ -1,6 +1,6 @@
 # docintelligence-mc-ingest-tagvenue-scraper
 
-> **Tagvenue → Shortlisty Master Catalog Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue and room listings. Produces `MasterVenueRecord`-compatible JSON files for cold-start ingestion into the Shortlisty Intelligence internal platform **Venue Master Catalog** (`public.master_venue`).
+> **Tagvenue → Shortlisty Master Catalog Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue listings. Produces one `MasterVenueRecord`-compatible JSON file per venue, under a single re-runnable folder tree, for cold-start ingestion into the Shortlisty Intelligence internal platform **Venue Master Catalog** (`public.master_venue`).
 
 [![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--master--catalog--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/docintelligence-mc-ingest-tagvenue-scraper)
 [![Status](https://img.shields.io/badge/status-MVP-yellow)](#)
@@ -11,18 +11,21 @@
 
 ## 1. Purpose
 
-Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue and room data from public Tagvenue listing pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `shortlisty-catalog-service` (Shortlisty Intelligence platform).
+Tagvenue.com is a marketplace for event venues and spaces. This scraper extracts structured venue data from public Tagvenue venue pages and writes it as normalized JSON ready to be imported into the **Venue Master Catalog** — the internal hidden reference dataset stored in `public.master_venue` / `public.master_venue_external` tables of the `shortlisty-catalog-service` (Shortlisty Intelligence platform).
+
+The **venue** is the entity of record. Individual room pages are not records of their own: every room belonging to a venue is folded into that venue's single record, and the venue page is the only page type the detail pass visits.
 
 Key characteristics:
 
 - **Stateless, single-binary container** — one image, many cities/runs, no rebuilds to change parameters.
 - **Two-pass model** — discovery (sitemap / search pagination) + detail extraction.
+- **One folder per venue, predictable paths** — `<outputDir>/mc-ingest/tagvenue-<venue_id>/venue.json` plus a sibling `assets/` folder for photos. A re-run overwrites the same paths, so repeated runs never accumulate copies.
 - **Lightweight default (axios + cheerio, SSR HTML)** for 80% of fields via JSON-LD schema.org.
 - **Optional Playwright browser mode** (`--browser` / `TV_BROWSER=true`) for JS-rendered pricing.
 - **Robots.txt compliant** out of the box with `robots-parser`.
 - **Docker & K8s-native** — fixed `/data` volume mount point, ENV-var + CLI-arg configuration.
 
-Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HTML into a `MasterVenueRecord` JSON envelope**, in a self-contained, schedulable package. Never connects to the database — the importer worker handles DB upsert.
+Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HTML into a canonical `MasterVenueRecord` per venue**, in a self-contained, schedulable package. Never connects to the database — the importer worker handles DB upsert.
 
 ---
 
@@ -48,7 +51,7 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 ┌──────────────────────────────────────────────────────────────────────┐
 │                        docintelligence-mc-ingest-tagvenue-scraper                  │
 │                                                                       │
-│  PASS 1 — DISCOVERY (collect /rooms/... URLs)                         │
+│  PASS 1 — DISCOVERY (collect /venues/... URLs)                        │
 │                                                                       │
 │   ┌─────────────────────────┐      ┌──────────────────────────────┐  │
 │   │  sitemap.xml parser     │      │  city search pagination     │  │
@@ -59,7 +62,7 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 │               │                                   │                   │
 │               └─────────────────┬─────────────────┘                   │
 │                                 ▼                                     │
-│                    Deduplicated set of /rooms/ URLs                   │
+│                    Deduplicated set of /venues/ URLs                  │
 │                    (capped by --limit / TV_LIMIT)                     │
 │                                 │                                     │
 │  PASS 2 — DETAIL EXTRACTION     │                                     │
@@ -79,8 +82,10 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 │              └───────────────────┬───────────────────┘                │
 │                                  ▼                                    │
 │              ┌───────────────────────────────────────┐                │
-│              │   Write /data/<slug>-<date>.json      │                │
-│              │   + optional .log file                │                │
+│              │  Write /data/mc-ingest/               │                │
+│              │      tagvenue-<venue_id>/venue.json   │                │
+│              │  + download assets/ photos            │                │
+│              │  + optional .log file                 │                │
 │              └───────────────────────────────────────┘                │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -91,13 +96,13 @@ Use `--mode sitemap` (default for full coverage) or `--mode search` (filtered by
 
 | Mode        | What it does                                                                                                                                                                            | Speed        | Use when                                       |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------- |
-| `sitemap`   | Downloads `https://www.tagvenue.com/sitemap.xml` → parses sitemap index → iterates `sitemap-rooms-*.xml` → extracts all `/rooms/...` URLs                                               | ~100x faster | No city filters needed, or max coverage.       |
+| `sitemap`   | Downloads `https://www.tagvenue.com/sitemap.xml` → parses the sitemap index → iterates `sitemap-venues` / `sitemap-venues-<N>` → extracts all `/venues/...` URLs                        | ~100x faster | No city filters needed, or max coverage.       |
 | `search`    | Builds a search URL from `--city`, `--country`, `--people`, `--min-price`, `--max-price`, `--date` and paginates `?page=1…N` clicking "Next" or infinite-scroll detecting `No results`. | Slower       | Filtered subsets, MVP city-focused cold-start. |
-| `urls-file` | Reads a plain text file of raw `/rooms/...` URLs (or full URLs), one per line                                                                                                           | Instant      | QA / reproducible runs / backfill.             |
+| `urls-file` | Reads a plain text file of raw `/venues/...` URLs (or full URLs), one per line                                                                                                          | Instant      | QA / reproducible runs / backfill.             |
 
 ### Pass 2 — Detail extraction
 
-For each room detail page, the scraper prioritizes sources as:
+For each venue detail page, the scraper prioritizes sources as:
 
 1. **`<script type="application/ld+json">` (schema.org/Place + schema.org/LodgingBusiness + schema.org/Review)** — stable, field-rich, CSS-class independent. This is the **primary source** for name, address, lat/lng, capacities, ratings, review list, opening hours, images, price range.
 2. **DOM table selectors** (`data-testid`/`.spec-table`/`.room-features`) for fields not yet in JSON-LD: host info, response rate, catering details, facilities, accessibility, allowed events, host rules, nearest station.
@@ -109,25 +114,36 @@ Extracted fields flow through the **Tagvenue → MasterVenueRecord normalizer** 
 
 ## 4. Output & Canonical Schema
 
-The scraper outputs a single JSON file to:
+On start the scraper creates **one ingest tree** under `<outputDir>` and keeps every run inside it:
 
 ```
-<outputDir>/<slug>-<YYYY-MM-DD>.json
+<outputDir>/mc-ingest/
+└── tagvenue-<venue_id>/
+    ├── venue.json          # the canonical MasterVenueRecord for this venue
+    └── assets/             # the venue's photos, one file per photo key
+        ├── 11896-the-last-talisman-venue.jpg
+        └── 5-gladstone-library-room.jpg
 ```
 
-where `<outputDir>` defaults to `/data` (fixed container mount point; overridable via `--output-dir` / `TV_OUTPUT_DIR`) and `<slug>` is the city slug or `tagvenue-venues` when no city filter is used.
+- `<outputDir>` defaults to `/data` (fixed container mount point; overridable via `--output-dir` / `TV_OUTPUT_DIR`).
+- `mc-ingest` is created on every start (idempotent) and is the single tree the scraper owns.
+- The venue folder is named `tagvenue-<venue_id>`, where `<venue_id>` is Tagvenue's own numeric venue id from the URL (`/venues/<city>/<venue_id>/<venue_slug>`). That id is stable across runs and unique per venue, so a re-scrape rewrites the very same folder.
+- `venue.json` is written atomically (tmp file + rename), so a crash never leaves a half-written record. Re-running overwrites it in place — no dated copies.
+- `assets/` holds one file per **photo key**, not per URL variant. Tagvenue serves the same photo through many `/resize/<a>/<b>/<transform>;<key>.<ext>` variants; the scraper collapses them to the widest variant and names the file after `<key>`. Files already on disk are skipped, so repeated runs do not duplicate photos.
+- Photo download failures are logged and counted, never fatal — the record is still written.
+- There is **no aggregate run file**. Statistics are printed to the log and returned to the CLI, which reports them as a `[SUMMARY]` line.
 
-Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `shortlisty-master-venue-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
+Each `venue.json` is one **Tagvenue venue record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `shortlisty-master-venue-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
 
 ```json
 {
   "_schema_version": 1,
-  "external_id": "tagvenue:room:25426",
+  "external_id": "tagvenue:venue:11896",
   "external_source": "tagvenue",
   "source": "web_scrape",
-  "name": "Mala Madre Events Space at The Last Talisman",
-  "aliases": ["The Last Talisman — Mala Madre"],
-  "address": "171-173 Bermondsey Street, London SE1 3UW, GB",
+  "name": "The Last Talisman",
+  "aliases": ["Rooms & Event Spaces at The Last Talisman"],
+  "address": "171-173 Bermondsey Street, London, SE1 3UW, GB",
   "city": "London",
   "country_code": "GB",
   "postal_code": "SE1 3UW",
@@ -137,16 +153,15 @@ Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`
     "name": "London Bridge Station",
     "distance_miles": 0.5
   },
-  "venue_name": "The Last Talisman",
   "company": {
     "manager_name": "Dovile S.",
     "response_time_minutes": 39,
     "response_rate": 0.9991
   },
   "tagvenue_ids": {
-    "room_id": 25426,
     "venue_id": 11896,
-    "company_id": 67
+    "venue_slug": "the-last-talisman",
+    "city_slug": "london"
   },
   "rating": {
     "value": 4.7,
@@ -154,13 +169,26 @@ Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`
     "source": "tagvenue"
   },
   "photos": {
-    "count": 69,
-    "main_image": "https://www.tagvenue.com/resize/07/49/widen-1680-noupsize;25426-mala-madre-events-space-room.jpg",
+    "count": 2,
+    "main_image": {
+      "file": "11896-the-last-talisman-venue.jpg",
+      "url": "https://www.tagvenue.com/resize/14/2f/widen-1680-noupsize;11896-the-last-talisman-venue.jpg",
+      "transform": "widen-1680-noupsize"
+    },
     "gallery": [
-      "https://www.tagvenue.com/resize/07/49/widen-1680-noupsize;25426-mala-madre-events-space-room.jpg"
+      {
+        "file": "11896-the-last-talisman-venue.jpg",
+        "url": "https://www.tagvenue.com/resize/14/2f/widen-1680-noupsize;11896-the-last-talisman-venue.jpg",
+        "transform": "widen-1680-noupsize"
+      },
+      {
+        "file": "5-gladstone-library-room.jpg",
+        "url": "https://www.tagvenue.com/resize/2c/9a/widen-1680-noupsize;5-gladstone-library-room.jpg",
+        "transform": "widen-1680-noupsize"
+      }
     ]
   },
-  "source_url": "https://www.tagvenue.com/rooms/london/25426/the-last-talisman/mala-madre-events-space",
+  "source_url": "https://www.tagvenue.com/venues/london/11896/the-last-talisman",
   "metadata": {
     "_schema_version": 1,
     "capacity": {
@@ -265,25 +293,33 @@ Each array element is one **Tagvenue room record** (i.e. one `MasterVenueRecord`
       "author": "Luisa P.",
       "date": "2025-09-09",
       "rating": 4.8,
-      "text": "I celebrated my 30's at Mala Madre and it was amazing!!…"
+      "text": "I celebrated my 30's here and it was amazing!!…"
     }
   ],
-  "confidence": 0.78,
+  "confidence": 0.85,
   "scrape_run": {
     "at": "2026-08-12T03:14:07.123Z",
     "fetcher": "http",
     "fetcher_version": "0.1.0",
     "duration_ms": 1183,
-    "http_status": 200
+    "http_status": 200,
+    "coverage": {
+      "has_json_ld": true,
+      "features_count": 11,
+      "restrictions_count": 1,
+      "gallery_count": 2,
+      "reviews_count": 1,
+      "spec_rows_count": 0
+    }
   }
 }
 ```
 
 ### Provenance & confidence
 
-- `confidence` defaults to **0.70–0.82** (web scraped source). It degrades to 0.55 when JSON-LD is missing and fields come only from DOM selectors.
+- `confidence` defaults to **0.70–0.85** (web scraped source). It degrades to 0.55 when JSON-LD is missing and fields come only from DOM selectors.
 - `scrape_run.fetcher` is `http` (SSR mode) or `browser` (Playwright mode) so downstream dedup logic can weight fields accordingly.
-- `external_id` format: `tagvenue:room:<room_id>` — stable across runs. The importer worker uses the composite key `(external_source, external_id)` to UPSERT into `public.master_venue_external`. If the row exists → update `last_seen_at` + merge provenance into the parent `master_venue`. If not → proceed to name+alias+geo fuzzy dedup against `public.master_venue` to decide MERGE vs CREATE new master row.
+- `external_id` format: `tagvenue:venue:<venue_id>` — stable across runs. The importer worker uses the composite key `(external_source, external_id)` to UPSERT into `public.master_venue_external`. If the row exists → update `last_seen_at` + merge provenance into the parent `master_venue`. If not → proceed to name+alias+geo fuzzy dedup against `public.master_venue` to decide MERGE vs CREATE new master row.
 
 ---
 
@@ -300,36 +336,37 @@ DEFAULTS (hardcoded in src/config.js)
 
 ### 5.1 Full parameter reference
 
-| CLI long            | Short | ENV var              | Default                                                                  | Description                                                                                                                                             |
-| ------------------- | ----- | -------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--mode`            | `-m`  | `TV_MODE`            | `sitemap`                                                                | Discovery mode: `sitemap`, `search`, `urls-file`.                                                                                                       |
-| `--city`            |       | `TV_CITY`            | `null`                                                                   | City filter for search mode, and slug in output filename.                                                                                               |
-| `--country`         |       | `TV_COUNTRY`         | `null`                                                                   | ISO country code (2-letter) used together with `--city`.                                                                                                |
-| `--people`          |       | `TV_PEOPLE`          | `null`                                                                   | Minimum attendee count for search filters.                                                                                                              |
-| `--date`            |       | `TV_DATE`            | `null`                                                                   | Date string `YYYY-MM-DD` for availability-filtered search.                                                                                              |
-| `--time-from`       |       | `TV_TIME_FROM`       | `null`                                                                   | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                         |
-| `--time-to`         |       | `TV_TIME_TO`         | `null`                                                                   | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                         |
-| `--min-price`       |       | `TV_MIN_PRICE`       | `null`                                                                   | Minimum price filter (search mode).                                                                                                                     |
-| `--max-price`       |       | `TV_MAX_PRICE`       | `null`                                                                   | Maximum price filter (search mode).                                                                                                                     |
-| `--limit`           | `-l`  | `TV_LIMIT`           | `100`                                                                    | Max number of room URLs to pass through the detail pass. `0` = no cap.                                                                                  |
-| `--page`            |       | `TV_PAGE`            | `1`                                                                      | Starting page for `search` mode.                                                                                                                        |
-| `--urls-file`       |       | `TV_URLS_FILE`       | `null`                                                                   | Path to a line-delimited list of full /rooms/ URLs (mode `urls-file`).                                                                                  |
-| `--concurrency`     | `-c`  | `TV_CONCURRENCY`     | `5`                                                                      | Concurrent detail-pass HTTP requests. Keep low (3–8) to avoid bans.                                                                                     |
-| `--min-delay-ms`    |       | `TV_MIN_DELAY_MS`    | `600`                                                                    | Minimum delay between requests (ms). Random jitter of ±`--jitter-ms` is added.                                                                          |
-| `--jitter-ms`       |       | `TV_JITTER_MS`       | `400`                                                                    | Maximum additional random delay added to `--min-delay-ms`.                                                                                              |
-| `--timeout-ms`      |       | `TV_TIMEOUT_MS`      | `15000`                                                                  | Per-request timeout (ms).                                                                                                                               |
-| `--retries`         |       | `TV_RETRIES`         | `3`                                                                      | Retry attempts per URL on 429/5xx/network failures.                                                                                                     |
-| `--user-agent`      |       | `TV_USER_AGENT`      | (Chrome 126 desktop UA string)                                           | Override user agent header.                                                                                                                             |
-| `--proxy`           |       | `TV_PROXY`           | `null`                                                                   | `http://user:pass@host:port` proxy URL for outgoing requests (both modes).                                                                              |
-| `--browser`         |       | `TV_BROWSER`         | `false`                                                                  | Use Playwright Chromium instead of axios/cheerio for the detail pass. Needs `optionalDependencies` installed (`pnpm install` includes them by default). |
-| `--browser-stealth` |       | `TV_BROWSER_STEALTH` | `true`                                                                   | Apply `playwright-stealth` plugins when in browser mode.                                                                                                |
-| `--output-dir`      | `-o`  | `TV_OUTPUT_DIR`      | `/data`                                                                  | Directory where the output JSON and optional log are written. Volume mount target.                                                                      |
-| `--output-file`     |       | `TV_OUTPUT_FILE`     | auto (`{city}-{YYYY-MM-DD}.json` or `tagvenue-venues-{YYYY-MM-DD}.json`) | Explicit output file name inside `--output-dir`.                                                                                                        |
-| `--config`          |       | —                    | `null`                                                                   | Path to a JSON file whose keys are merged in at the `--config` priority tier (see §5 intro).                                                            |
-| `--log-level`       |       | `TV_LOG_LEVEL`       | `info`                                                                   | `trace` \| `debug` \| `info` \| `warn` \| `error`.                                                                                                      |
-| `--log-file`        |       | `TV_LOG_FILE`        | `null`                                                                   | Optional file name in `--output-dir` to also tee logs to disk alongside stdout.                                                                         |
-| `--dry-run`         |       | `TV_DRY_RUN`         | `false`                                                                  | Run only the discovery pass and print the URL list; skip detail fetch.                                                                                  |
-| `--help`            | `-h`  | —                    | —                                                                        | Print the CLI help.                                                                                                                                     |
+| CLI long              | Short | ENV var                | Default                        | Description                                                                                                                                             |
+| --------------------- | ----- | ---------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--mode`              | `-m`  | `TV_MODE`              | `sitemap`                      | Discovery mode: `sitemap`, `search`, `urls-file`.                                                                                                       |
+| `--city`              |       | `TV_CITY`              | `null`                         | City filter for search mode.                                                                                                                            |
+| `--country`           |       | `TV_COUNTRY`           | `null`                         | ISO country code (2-letter) used together with `--city`.                                                                                                |
+| `--people`            |       | `TV_PEOPLE`            | `null`                         | Minimum attendee count for search filters.                                                                                                              |
+| `--date`              |       | `TV_DATE`              | `null`                         | Date string `YYYY-MM-DD` for availability-filtered search.                                                                                              |
+| `--time-from`         |       | `TV_TIME_FROM`         | `null`                         | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                         |
+| `--time-to`           |       | `TV_TIME_TO`           | `null`                         | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                         |
+| `--min-price`         |       | `TV_MIN_PRICE`         | `null`                         | Minimum price filter (search mode).                                                                                                                     |
+| `--max-price`         |       | `TV_MAX_PRICE`         | `null`                         | Maximum price filter (search mode).                                                                                                                     |
+| `--limit`             | `-l`  | `TV_LIMIT`             | `100`                          | Max number of venue URLs to pass through the detail pass. `0` = no cap.                                                                                 |
+| `--page`              |       | `TV_PAGE`              | `1`                            | Starting page for `search` mode.                                                                                                                        |
+| `--urls-file`         |       | `TV_URLS_FILE`         | `null`                         | Path to a line-delimited list of full `/venues/` URLs (mode `urls-file`).                                                                               |
+| `--sitemap-since`     |       | `TV_SITEMAP_SINCE`     | `null`                         | Only include venues whose sitemap `lastmod` >= this value (ISO date or `7d`/`2w`/`1m`). Entries without `lastmod` are always included.                  |
+| `--sitemap-max-pages` |       | `TV_SITEMAP_MAX_PAGES` | `100`                          | Max number of paginated `sitemap-venues-N` pages to fetch in `sitemap` mode.                                                                            |
+| `--concurrency`       | `-c`  | `TV_CONCURRENCY`       | `5`                            | Concurrent detail-pass HTTP requests. Keep low (3–8) to avoid bans.                                                                                     |
+| `--min-delay-ms`      |       | `TV_MIN_DELAY_MS`      | `600`                          | Minimum delay between requests (ms). Random jitter of ±`--jitter-ms` is added.                                                                          |
+| `--jitter-ms`         |       | `TV_JITTER_MS`         | `400`                          | Maximum additional random delay added to `--min-delay-ms`.                                                                                              |
+| `--timeout-ms`        |       | `TV_TIMEOUT_MS`        | `15000`                        | Per-request timeout (ms).                                                                                                                               |
+| `--retries`           |       | `TV_RETRIES`           | `3`                            | Retry attempts per URL on 429/5xx/network failures.                                                                                                     |
+| `--user-agent`        |       | `TV_USER_AGENT`        | (Chrome 126 desktop UA string) | Override user agent header.                                                                                                                             |
+| `--proxy`             |       | `TV_PROXY`             | `null`                         | `http://user:pass@host:port` proxy URL for outgoing requests (both modes).                                                                              |
+| `--browser`           |       | `TV_BROWSER`           | `false`                        | Use Playwright Chromium instead of axios/cheerio for the detail pass. Needs `optionalDependencies` installed (`pnpm install` includes them by default). |
+| `--browser-stealth`   |       | `TV_BROWSER_STEALTH`   | `true`                         | Apply `playwright-stealth` plugins when in browser mode.                                                                                                |
+| `--output-dir`        | `-o`  | `TV_OUTPUT_DIR`        | `/data`                        | Directory holding the `mc-ingest` tree and the optional log file. Volume mount target.                                                                  |
+| `--config`            |       | —                      | `null`                         | Path to a JSON file whose keys are merged in at the `--config` priority tier (see §5 intro).                                                            |
+| `--log-level`         |       | `TV_LOG_LEVEL`         | `info`                         | `trace` \| `debug` \| `info` \| `warn` \| `error`.                                                                                                      |
+| `--log-file`          |       | `TV_LOG_FILE`          | `null`                         | Optional file name in `--output-dir` to also tee logs to disk alongside stdout.                                                                         |
+| `--dry-run`           |       | `TV_DRY_RUN`           | `false`                        | Run only the discovery pass and print the URL list; skip detail fetch.                                                                                  |
+| `--help`              | `-h`  | —                      | —                              | Print the CLI help.                                                                                                                                     |
 
 ---
 
@@ -362,7 +399,7 @@ cp .env.example .env
 # Discovery pass only — dry-run, print the first 50 URLs it would scrape (city search)
 pnpm start --mode search --city london --country GB --limit 50 --dry-run
 
-# Full sitemap run, 100 rooms, SSR HTTP mode, write to ./output
+# Full sitemap run, 100 venues, SSR HTTP mode, write to ./output
 pnpm start --mode sitemap --limit 100 --output-dir ./output --log-level info
 
 # Filtered city search for 200-person conferences, 10 results, browser mode (JS pricing)
@@ -497,14 +534,13 @@ spec:
                 - { name: output, mountPath: /data }
               env:
                 - { name: TV_LOG_LEVEL, value: "warn" }
-                - { name: TV_OUTPUT_FILE, value: "tagvenue-sitemap-latest.json" }
           volumes:
             - name: output
               persistentVolumeClaim:
                 claimName: shortlisty-master-catalog-scrape-pvc
 ```
 
-The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`shortlisty-master-venue-loader`** Job (or watcher process) that consumes new files, UPSERTs into `public.master_venue_external`, and runs the fuzzy dedup+merge pipeline against `public.master_venue` (see §9).
+The scraped records land in the `/data` shared PV as one folder per venue (`/data/mc-ingest/tagvenue-<venue_id>/venue.json` + `assets/`), rewritten in place on every run. Wire a follow-up **`shortlisty-master-venue-loader`** Job (or watcher process) that consumes the tree, UPSERTs into `public.master_venue_external`, and runs the fuzzy dedup+merge pipeline against `public.master_venue` (see §9).
 
 ---
 
@@ -521,7 +557,7 @@ docintelligence-mc-ingest-tagvenue-scraper/
 │   ├── master-catalog/
 │   │   └── master-venue-record.js  # Shared MasterVenueRecord shape (matches public.master_venue.metadata schema)
 │   ├── discovery/
-│   │   ├── sitemap.js            # robots.txt aware sitemap.xml / sitemap-rooms parser
+│   │   ├── sitemap.js            # robots.txt aware sitemap.xml / sitemap-venues parser
 │   │   └── search.js             # ?page=1…N paginated search URL collector
 │   ├── fetchers/
 │   │   ├── http.js               # axios + retries, timeout, proxy, UA, throttling
@@ -533,7 +569,8 @@ docintelligence-mc-ingest-tagvenue-scraper/
 │   │       ├── extractor.js      # (html|page) → raw tagvenue record
 │   │       └── normalizer.js     # raw tagvenue record → MasterVenueRecord
 │   ├── output/
-│   │   ├── json-writer.js        # Atomic write + BOM-free JSON + _last.json symlink
+│   │   ├── venue-store.js        # mc-ingest tree: tagvenue-<venue_id>/venue.json + assets/
+│   │   ├── json-writer.js        # Low-level fs helpers (ensureDir, safe reads)
 │   │   └── logger.js             # Log level + stdout + optional file tee
 │   └── utils/
 │       ├── concurrency.js        # p-queue wrapper with progress events
@@ -544,7 +581,7 @@ docintelligence-mc-ingest-tagvenue-scraper/
 │   ├── architecture/README.md    # Design notes, provider contract, future adapters
 │   └── deployment/README.md      # K8s manifests, Helm notes, OCI image push scripts
 ├── examples/
-│   └── london-100.json           # Sample output payload shape
+│   └── venue.json                # Sample venue record (shape of one mc-ingest record)
 ├── .env.example
 ├── .dockerignore
 ├── Dockerfile                    # Slim (SSR) image; INSTALL_PLAYWRIGHT=1 → full image
@@ -588,14 +625,14 @@ This scraper is the **Tagvenue provider adapter** of the Shortlisty internal **V
 │  │ docintelligence-mc-ingest-tagvenue-scraper │  ◀  YOU ARE HERE. Node.js SSR / Browser CLI.     │
 │  │  (K8s Job / CronJob, Node.js) │    Stateless. NO DB connections, EVER.         │
 │  └────────────┬──────────────────┘                                                   │
-│               │ writes JSON envelope: List<MasterVenueRecord>                       │
+│               │ writes one record folder per venue:                                │
 │               ▼                                                                     │
-│     /data/shortlisty-master-catalog-scrape-pvc/tagvenue-london-2026-08-12.json        │
+│     /data/mc-ingest/tagvenue-11896/venue.json  (+ assets/)                           │
 │               │                                                                     │
 │  ┌────────────▼────────────────────────────────────────────────────────────────┐    │
 │  │ NEW: shortlisty-master-venue-loader  — Spring Boot Worker / CLI (NEXT TO BUILD) │    │
 │  │                                                                            │    │
-│  │  1. Reads envelope. Validates schema. Counts stats.                         │    │
+│  │  1. Reads the mc-ingest tree. Validates schema. Counts stats.               │    │
 │  │  2. FOR EACH MasterVenueRecord:                                             │    │
 │  │     a. UPSERT public.master_venue_external                                  │    │
 │  │        UNIQUE(external_source='tagvenue', external_id=record.external_id)   │    │

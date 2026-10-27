@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import minimist from "minimist";
 import dotenv from "dotenv";
+import { ingestRoot } from "./output/venue-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,7 +25,7 @@ const DEFAULTS = Object.freeze({
   urlsFile: null,
   // Sitemap-specific options
   sitemapSince: null, // ISO date or relative shorthand (e.g. "7d", "2w", "1m") — only scrape URLs with lastmod >= this date
-  sitemapMaxPages: 100, // maximum number of paginated sitemap-rooms-N.xml pages to fetch
+  sitemapMaxPages: 100, // maximum number of paginated sitemap-venues-N pages to fetch
   concurrency: 5,
   minDelayMs: 600,
   jitterMs: 400,
@@ -35,7 +36,6 @@ const DEFAULTS = Object.freeze({
   browser: false,
   browserStealth: true,
   outputDir: "/data",
-  outputFile: null,
   config: null,
   logLevel: "info",
   logFile: null,
@@ -67,7 +67,6 @@ const ENV_MAP = {
   TV_BROWSER: (v) => ({ browser: isTrueString(v) }),
   TV_BROWSER_STEALTH: (v) => ({ browserStealth: isTrueString(v) }),
   TV_OUTPUT_DIR: "outputDir",
-  TV_OUTPUT_FILE: "outputFile",
   TV_LOG_LEVEL: "logLevel",
   TV_LOG_FILE: "logFile",
   TV_DRY_RUN: (v) => ({ dryRun: isTrueString(v) }),
@@ -89,21 +88,6 @@ function parseIntOrNull(v) {
 function isTrueString(v) {
   if (typeof v === "boolean") return v;
   return ["1", "true", "yes", "on"].includes(String(v).toLowerCase());
-}
-
-function todaySlug(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
-
-function slugifyCity(city) {
-  if (!city) return null;
-  return (
-    city
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      .slice(0, 80) || null
-  );
 }
 
 function readJsonFile(filePath) {
@@ -180,18 +164,10 @@ export function resolveConfig({
   merged._argv = argv;
   merged._help = !!cli.help;
 
-  if (!merged.outputFile) {
-    const cityPart = slugifyCity(merged.city);
-    const ts = todaySlug();
-    merged.outputFile = cityPart ? `${cityPart}-${ts}.json` : `tagvenue-venues-${ts}.json`;
-  }
-  merged.outputPath = path.posix.join(
-    String(merged.outputDir).replace(/\/$/, ""),
-    merged.outputFile,
-  );
+  // Single ingest tree: every venue record folder lives below this path.
+  merged.ingestDir = ingestRoot(merged.outputDir);
 
   return Object.freeze(merged);
 }
 
 export const CONFIG_DEFAULTS = DEFAULTS;
-export { todaySlug, slugifyCity };

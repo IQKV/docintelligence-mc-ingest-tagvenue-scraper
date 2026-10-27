@@ -1,0 +1,177 @@
+{
+  "_schema_version": 1,
+  "external_id": "tagvenue:venue:11896",
+  "external_source": "tagvenue",
+  "source": "web_scrape",
+  "name": "The Last Talisman",
+  "aliases": ["Rooms & Event Spaces at The Last Talisman"],
+  "address": "171-173 Bermondsey Street, London, SE1 3UW, GB",
+  "city": "London",
+  "country_code": "GB",
+  "postal_code": "SE1 3UW",
+  "location": { "lat": 51.499067, "lng": -0.0808991 },
+  "description": "A stone's throw from London Bridge Station…",
+  "nearest_station": {
+    "name": "London Bridge Station",
+    "distance_miles": 0.5
+  },
+  "company": {
+    "manager_name": "Dovile S.",
+    "response_time_minutes": 39,
+    "response_rate": 0.9991
+  },
+  "tagvenue_ids": {
+    "venue_id": 11896,
+    "venue_slug": "the-last-talisman",
+    "city_slug": "london"
+  },
+  "rating": {
+    "value": 4.7,
+    "review_count": 588,
+    "source": "tagvenue"
+  },
+  "photos": {
+    "count": 2,
+    "main_image": {
+      "file": "11896-the-last-talisman-venue.jpg",
+      "url": "https://www.tagvenue.com/resize/14/2f/widen-1680-noupsize;11896-the-last-talisman-venue.jpg",
+      "transform": "widen-1680-noupsize"
+    },
+    "gallery": [
+      {
+        "file": "11896-the-last-talisman-venue.jpg",
+        "url": "https://www.tagvenue.com/resize/14/2f/widen-1680-noupsize;11896-the-last-talisman-venue.jpg",
+        "transform": "widen-1680-noupsize"
+      },
+      {
+        "file": "5-gladstone-library-room.jpg",
+        "url": "https://www.tagvenue.com/resize/2c/9a/widen-1680-noupsize;5-gladstone-library-room.jpg",
+        "transform": "widen-1680-noupsize"
+      }
+    ]
+  },
+  "source_url": "https://www.tagvenue.com/venues/london/11896/the-last-talisman",
+  "metadata": {
+    "_schema_version": 1,
+    "capacity": {
+      "max_total": 90,
+      "configurations": {
+        "standing": 90,
+        "banquet": 60,
+        "theater": null,
+        "classroom": null,
+        "cocktail": null,
+        "conference": null,
+        "boardroom": 18
+      },
+      "min_attendees_per_event": 30
+    },
+    "venue_type": ["restaurant_private_event_space"],
+    "catering": {
+      "policy": "in_house_exclusive",
+      "kosher_available": false,
+      "halal_available": false,
+      "vegan_available": true,
+      "vegetarian_available": true,
+      "gluten_free_available": true,
+      "alcohol_licence_until": "01:30",
+      "byo_alcohol_allowed": false,
+      "external_catering_allowed": false,
+      "cuisines_available": ["asian"]
+    },
+    "av_tech": {
+      "built_in_av": true,
+      "wifi": true,
+      "projector": true,
+      "screens": 3,
+      "speakers": true,
+      "pa_system": true,
+      "flatscreen_tv": true,
+      "whiteboard": true,
+      "flipchart": true,
+      "conference_call": false
+    },
+    "accessibility": {
+      "ada_compliant": false,
+      "elevator_access": false,
+      "accessible_restrooms": false,
+      "wheelchair_stage_access": false,
+      "wheelchair_accessible": false,
+      "ground_level": false,
+      "disabled_parking": false,
+      "cargo_lift": false
+    },
+    "logistics": {
+      "air_conditioning": true,
+      "natural_light": true,
+      "private_bar": true,
+      "private_entrance": true,
+      "private_toilets": true,
+      "parking_available": true,
+      "paid_parking_nearby": true,
+      "storage_space": false,
+      "quiet_space": false,
+      "noise_restriction_after": "23:00",
+      "alcohol_licence": true
+    },
+    "amenities": [
+      "Wi-Fi",
+      "Projector",
+      "Flatscreen TV",
+      "Whiteboard",
+      "Flipchart",
+      "PA system / speakers",
+      "Air conditioner",
+      "Natural light",
+      "Paid parking facilities available nearby",
+      "Private Bar",
+      "Private Entrance",
+      "Private Toilets"
+    ],
+    "restrictions": [
+      "No smoking in the building",
+      "Outside catering is not allowed",
+      "BYO alcohol not allowed",
+      "No promoted and ticketed events allowed",
+      "Bring your own DJ not allowed",
+      "No wedding licence"
+    ],
+    "pricing": {
+      "currency": "GBP",
+      "minimum_spend": null,
+      "rental_fee_indicative": null,
+      "price_range_hint": "from £10 per person / per session",
+      "price_method": "per_person_per_session"
+    },
+    "music_and_sound": {
+      "play_own_music_allowed": true,
+      "byo_dj_allowed": false,
+      "noise_restriction_after": "23:00"
+    },
+    "contacts": [{ "name": "Dovile S.", "role": "Venue Manager" }]
+  },
+  "reviews": [
+    {
+      "author": "Luisa P.",
+      "date": "2025-09-09",
+      "rating": 4.8,
+      "text": "I celebrated my 30's here and it was amazing!!…"
+    }
+  ],
+  "confidence": 0.85,
+  "scrape_run": {
+    "at": "2026-08-12T03:14:07.123Z",
+    "fetcher": "http",
+    "fetcher_version": "0.1.0",
+    "duration_ms": 1183,
+    "http_status": 200,
+    "coverage": {
+      "has_json_ld": true,
+      "features_count": 11,
+      "restrictions_count": 1,
+      "gallery_count": 2,
+      "reviews_count": 1,
+      "spec_rows_count": 0
+    }
+  }
+}

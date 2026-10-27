@@ -18,6 +18,7 @@ import {
   extractTimeFromText,
   truncate,
 } from "../../utils/normalize.js";
+import { pickPhotoVariants } from "./selectors.js";
 
 // Schema version matches Shortlisty canonical metadata schema.
 const SCHEMA_VERSION = 1;
@@ -37,18 +38,11 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
     cleanText(ld?.name) ||
     cleanText(dom.h1_name) ||
     cleanText(dom.title) ||
-    parsed?.room_slug ||
+    parsed?.venue_slug ||
     null;
 
-  // aliases: [raw h1 name with stripped trailing venue, raw breadcrumb venue, slug]
+  // aliases: [page title with the trailing "… | Tagvenue.com" suffix stripped]
   const aliases = [];
-  if (parsed?.venue_slug && rawName) {
-    const prettyVenue = parsed.venue_slug
-      .replace(/[-_]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-    if (!rawName.includes(prettyVenue) && rawName.length < 80)
-      aliases.push(`${prettyVenue} — ${rawName}`);
-  }
   if (dom.title && dom.title !== rawName) {
     const shorter = dom.title.replace(/\s*[-—–|].*?Tagvenue\.com\s*$/i, "").trim();
     if (shorter && shorter !== rawName) aliases.push(shorter);
@@ -188,19 +182,14 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
     if (reviewsNorm.length >= 30) break;
   }
 
-  // Photos
-  const mainImage =
-    typeof ld?.image === "string"
-      ? ld.image
-      : Array.isArray(ld?.image)
-        ? ld.image[0]
-        : (dom.gallery_images || [])[0] || null;
-  const gallery = [];
-  if (mainImage) gallery.push(mainImage);
-  for (const img of dom.gallery_images || []) {
-    if (gallery.length >= 50) break;
-    if (!gallery.includes(img)) gallery.push(img);
-  }
+  // Photos: one asset entry per photo, keeping the widest variant available.
+  // The `file` name is derived from the photo key, not from the variant, so the
+  // asset store lays down the same file for a photo on every run.
+  const photoUrls = [
+    ...(typeof ld?.image === "string" ? [ld.image] : Array.isArray(ld?.image) ? ld.image : []),
+    ...(dom.gallery_images || []),
+  ];
+  const assets = pickPhotoVariants(photoUrls);
 
   const company = {};
   if (hostName) company.manager_name = hostName;
@@ -210,28 +199,10 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
   const nearestStation =
     stationName || stationDist ? { name: stationName, distance_miles: stationDist } : null;
 
-  const venueNameFromBreadcrumb = (() => {
-    // breadcrumb[-1] = district? Let's find longest name that is NOT district/country and is not current room name.
-    const items = raw.breadcrumb?.items || [];
-    for (let i = items.length - 2; i >= 1; i--) {
-      const n = cleanText(items[i].name);
-      if (!n) continue;
-      if (n === localityClean || n === countryCode) continue;
-      if (n.toLowerCase().endsWith("london") || n.toLowerCase().includes("central")) {
-        // district → skip if matches city
-        if (localityClean && n.toLowerCase().includes(localityClean.toLowerCase())) continue;
-      }
-      return n;
-    }
-    return null;
-  })();
-
   const tagvenueIds = parsed
     ? {
-        room_id: parsed.room_id,
-        venue_id: null, // not in rooms URL
+        venue_id: parsed.venue_id,
         venue_slug: parsed.venue_slug || null,
-        room_slug: parsed.room_slug || null,
         city_slug: parsed.city || null,
       }
     : null;
@@ -312,7 +283,7 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
   const entry = {
     _schema_version: SCHEMA_VERSION,
     external_id: parsed
-      ? `tagvenue:room:${parsed.room_id}`
+      ? `tagvenue:venue:${parsed.venue_id}`
       : `tagvenue:url:${encodeURIComponent(scrape.url || ld?.url || "")}`,
     external_source: "tagvenue",
     source: "web_scrape",
@@ -325,11 +296,6 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
     location: lat != null && lng != null ? { lat, lng } : null,
     description: truncate(cleanText(ld?.description) || cleanText(dom.description), 4000),
     nearest_station: nearestStation,
-    venue_name:
-      venueNameFromBreadcrumb ||
-      (parsed?.venue_slug
-        ? parsed.venue_slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-        : null),
     company: Object.keys(company).length ? company : null,
     tagvenue_ids: tagvenueIds,
     rating: aggregate?.rating_value
@@ -343,9 +309,9 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
         }
       : null,
     photos: {
-      count: gallery.length || null,
-      main_image: mainImage || null,
-      gallery: gallery.slice(0, 50),
+      count: assets.length || null,
+      main_image: assets[0] ?? null,
+      gallery: assets,
     },
     source_url: scrape.url || ld?.url || null,
     metadata,
@@ -361,7 +327,7 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
         has_json_ld: !!ld,
         features_count: (dom.features_list || []).length,
         restrictions_count: restrictions.length,
-        gallery_count: gallery.length,
+        gallery_count: assets.length,
         reviews_count: reviewsNorm.length,
         spec_rows_count: specRows.length,
       },

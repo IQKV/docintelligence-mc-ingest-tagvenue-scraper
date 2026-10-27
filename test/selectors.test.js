@@ -1,42 +1,71 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  parseRoomUrl,
   parseVenueUrl,
-  ROOM_URL_RE,
+  VENUE_URL_RE,
+  parsePhotoUrl,
+  pickPhotoVariants,
   findFirstLdByType,
   findAllLdByType,
   ldAdditionalPropertyMap,
   ldBlocksFromHtml,
 } from "../src/providers/tagvenue/selectors.js";
 
+const VENUE_URL = "https://www.tagvenue.com/venues/london/11896/the-last-talisman";
+
 const ROOM_URL =
   "https://www.tagvenue.com/rooms/london/25426/the-last-talisman/mala-madre-events-space";
 
-test("parseRoomUrl extracts city, room id and slugs", () => {
-  const parsed = parseRoomUrl(ROOM_URL);
+test("parseVenueUrl extracts city, venue id and slug", () => {
+  const parsed = parseVenueUrl(VENUE_URL);
   assert.equal(parsed.city, "london");
-  assert.equal(parsed.room_id, 25426);
-  assert.equal(parsed.venue_slug, "the-last-talisman");
-  assert.equal(parsed.room_slug, "mala-madre-events-space");
-});
-
-test("parseRoomUrl strips query string and fragment", () => {
-  assert.equal(parseRoomUrl(`${ROOM_URL}?page=2#gallery`).url, ROOM_URL);
-});
-
-test("parseRoomUrl rejects non-room URLs", () => {
-  assert.equal(
-    parseRoomUrl("https://www.tagvenue.com/venues/london/11896/the-last-talisman"),
-    null,
-  );
-  assert.equal(ROOM_URL_RE.test("https://www.tagvenue.com/venues/london/11896/x"), false);
-});
-
-test("parseVenueUrl extracts venue id and city", () => {
-  const parsed = parseVenueUrl("https://www.tagvenue.com/venues/london/11896/the-last-talisman");
   assert.equal(parsed.venue_id, 11896);
-  assert.equal(parsed.city, "london");
+  assert.equal(parsed.venue_slug, "the-last-talisman");
+});
+
+test("parseVenueUrl strips query string and fragment", () => {
+  assert.equal(parseVenueUrl(`${VENUE_URL}?page=2#gallery`).url, VENUE_URL);
+});
+
+test("parseVenueUrl rejects non-venue URLs", () => {
+  assert.equal(parseVenueUrl(ROOM_URL), null);
+  assert.equal(VENUE_URL_RE.test(ROOM_URL), false);
+});
+
+test("parsePhotoUrl derives a variant-stable asset file name", () => {
+  const photo = parsePhotoUrl(
+    "https://www.tagvenue.com/resize/14/2f/fit-900-600;7-the-royal-horseguards-venue.jpg",
+  );
+  assert.equal(photo.file, "7-the-royal-horseguards-venue.jpg");
+  assert.equal(photo.transform, "fit-900-600");
+  assert.equal(
+    photo.url,
+    "https://www.tagvenue.com/resize/14/2f/fit-900-600;7-the-royal-horseguards-venue.jpg",
+  );
+});
+
+test("parsePhotoUrl absolutises relative photo paths and ignores site chrome", () => {
+  assert.equal(
+    parsePhotoUrl("/resize/ab/cd/widen-1680-noupsize;5-gladstone-library-room.jpg").url,
+    "https://www.tagvenue.com/resize/ab/cd/widen-1680-noupsize;5-gladstone-library-room.jpg",
+  );
+  assert.equal(parsePhotoUrl("https://static.tagvenue.com/img/logo.png"), null);
+});
+
+test("pickPhotoVariants keeps one entry per photo, preferring the widest variant", () => {
+  const assets = pickPhotoVariants([
+    "https://www.tagvenue.com/resize/14/2f/fit-900-600;7-the-royal-horseguards-venue.jpg",
+    "https://www.tagvenue.com/resize/14/2f/widen-1680-noupsize;7-the-royal-horseguards-venue.jpg",
+    "https://www.tagvenue.com/resize/ab/cd/fit-600-400;5-gladstone-library-room.jpg",
+    "https://static.tagvenue.com/img/logo.png",
+  ]);
+  assert.deepEqual(
+    assets.map((a) => [a.file, a.transform]),
+    [
+      ["7-the-royal-horseguards-venue.jpg", "widen-1680-noupsize"],
+      ["5-gladstone-library-room.jpg", "fit-600-400"],
+    ],
+  );
 });
 
 test("ldBlocksFromHtml parses every ld+json block", () => {

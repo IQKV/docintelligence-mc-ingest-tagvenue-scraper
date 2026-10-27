@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { createLogger } from "./output/logger.js";
 import { createHttpFetcher } from "./fetchers/http.js";
 import { createRobotsChecker } from "./fetchers/robots.js";
@@ -7,9 +8,17 @@ import { extractTagvenueRecord } from "./providers/tagvenue/extractor.js";
 import { normalizeTagvenueToCanonical } from "./providers/tagvenue/normalizer.js";
 import { createConcurrencyQueue } from "./utils/concurrency.js";
 import { createRateLimiter } from "./utils/rate-limit.js";
-import { writeJsonAtomic } from "./output/json-writer.js";
+import { ensureDir } from "./output/json-writer.js";
+import {
+  VENUE_RECORD_FILE,
+  downloadVenueAssets,
+  ingestRoot,
+  venueDirFor,
+  venueDirName,
+  writeJsonFile,
+} from "./output/venue-store.js";
 
-// Minimum bytes a real Tagvenue room detail page should have.
+// Minimum bytes a real Tagvenue detail page should have.
 // Pages below this threshold are typically captcha walls, empty redirects, or error pages.
 // We warn rather than hard-fail — the confidence score will be low and the record is kept.
 const MIN_HTML_BYTES = 30_000;
@@ -31,12 +40,17 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
     outputDir: config.outputDir,
   });
 
+  // Everything lands under <outputDir>/mc-ingest/<tagvenue-id>/, so the host only
+  // has to mount one directory and the layout is the same on every run.
+  const rootDir = ingestRoot(config.outputDir);
+  ensureDir(rootDir);
+
   logger.info("docintelligence-mc-ingest-tagvenue-scraper starting", {
     mode: config.mode,
     city: config.city ?? null,
     country: config.country ?? null,
     limit: config.limit,
-    outputPath: config.outputPath,
+    rootDir,
     browser: config.browser,
     dryRun: config.dryRun,
     concurrency: config.concurrency,
@@ -65,14 +79,15 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
 
   // ── Graceful shutdown ────────────────────────────────────────────────────────
   // On SIGINT / SIGTERM we stop accepting new work, flush whatever is already
-  // in-flight, write partial results, and exit cleanly instead of crashing.
+  // in-flight, and exit cleanly instead of crashing. Venues already written stay
+  // on disk, so an interrupted run is safe to repeat.
   let aborted = false;
   const abortController = new AbortController();
 
   function handleShutdownSignal(signal) {
     if (aborted) return;
     aborted = true;
-    logger.warn(`${signal} received — draining in-flight requests, will write partial results…`);
+    logger.warn(`${signal} received — draining in-flight requests…`);
     abortController.abort();
   }
 
@@ -94,65 +109,23 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
     throw err;
   }
 
-  logger.info(`discovery returned ${discovered.length} room URL(s)`);
+  logger.info(`discovery returned ${discovered.length} venue URL(s)`);
 
   // ── Dry-run branch ───────────────────────────────────────────────────────────
   if (config.dryRun) {
-    logger.info("dry-run mode — skipping detail pass, writing URL list");
-    const dryRunOutput = buildOutputEnvelope({
-      config,
-      startedAt,
-      finishedAt: now(),
-      discovered,
-      records: [],
-      failures: [],
-      dryRun: true,
-      dryRunUrls: discovered.map((url, idx) => ({ index: idx + 1, url })),
+    logger.info("dry-run mode — skipping detail pass, nothing written", {
+      urls: discovered.length,
     });
-    const write = writeJsonAtomic({
-      outputDir: config.outputDir,
-      outputFile: config.outputFile,
-      data: dryRunOutput,
-    });
-    logger.info("dry-run output written", {
-      outputPath: write.outputPath,
-      bytes: write.sizeBytes,
-    });
+    for (const url of discovered) logger.info(url);
     removeShutdownHandlers();
-    return {
-      status: "dry-run",
-      discovered,
-      records: [],
-      failures: [],
-      outputPath: write.outputPath,
-    };
+    return { status: "dry-run", rootDir, discovered, records: [], failures: [] };
   }
 
   // ── Empty-discovery branch ───────────────────────────────────────────────────
   if (!discovered.length) {
-    logger.warn("no URLs found; writing empty output");
-    const emptyOutput = buildOutputEnvelope({
-      config,
-      startedAt,
-      finishedAt: now(),
-      discovered: [],
-      records: [],
-      failures: [],
-      dryRun: false,
-    });
-    const write = writeJsonAtomic({
-      outputDir: config.outputDir,
-      outputFile: config.outputFile,
-      data: emptyOutput,
-    });
+    logger.warn("no URLs found; nothing to store", { rootDir });
     removeShutdownHandlers();
-    return {
-      status: "empty-discovery",
-      discovered: [],
-      records: [],
-      failures: [],
-      outputPath: write.outputPath,
-    };
+    return { status: "empty-discovery", rootDir, discovered: [], records: [], failures: [] };
   }
 
   // ── Detail pass ──────────────────────────────────────────────────────────────
@@ -171,7 +144,7 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
     tag: "detail-q",
   });
 
-  // Pre-allocate result slots to preserve input order in the output.
+  const assetTotals = { downloaded: 0, skipped: 0, failed: 0 };
   const resultSlots = new Array(discovered.length).fill(null);
   let processed = 0;
 
@@ -215,14 +188,34 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
 
       const normalized = normalizeTagvenueToCanonical(raw, now());
 
-      itemLogger.info("ok", {
+      const venueId = normalized.tagvenue_ids?.venue_id ?? null;
+      if (venueId == null) {
+        throw new Error("no venue id in URL — cannot derive a venue folder");
+      }
+
+      const venueDir = venueDirFor(rootDir, venueId);
+      const assets = normalized.photos?.gallery ?? [];
+      const assetStats = await downloadVenueAssets({
+        http,
+        venueDir,
+        assets,
+        logger: itemLogger,
+        timeoutMs: config.timeoutMs,
+        retries: config.retries,
+        signal: abortController.signal,
+      });
+      const write = writeJsonFile(path.posix.join(venueDir, VENUE_RECORD_FILE), normalized);
+
+      itemLogger.info("stored", {
+        venue: venueDirName(venueId),
         name: (normalized.name || "").slice(0, 60),
         confidence: normalized.confidence,
-        size: html.length,
+        assets: `${assetStats.downloaded} new / ${assetStats.skipped} existing / ${assetStats.failed} failed`,
+        bytes: write.sizeBytes,
         ms: fetchMs,
       });
 
-      return { ok: true, url: res.url || url, normalized };
+      return { ok: true, url: res.url || url, normalized, assetStats };
     } catch (err) {
       if (abortController.signal.aborted && err.name === "CanceledError") {
         return { ok: false, url, error: "aborted" };
@@ -245,6 +238,12 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
         resultSlots[idx] = result;
         processed++;
 
+        if (result?.assetStats) {
+          assetTotals.downloaded += result.assetStats.downloaded;
+          assetTotals.skipped += result.assetStats.skipped;
+          assetTotals.failed += result.assetStats.failed;
+        }
+
         if (processed % PROGRESS_EVERY === 0 || processed === discovered.length) {
           const okSoFar = resultSlots.filter((r) => r?.ok).length;
           logger.info("progress", {
@@ -266,7 +265,7 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
 
   await queue.onIdle();
 
-  // Separate ok records from failures, preserving input order.
+  // Separate stored venues from failures, preserving input order.
   const records = [];
   const failures = [];
 
@@ -282,31 +281,13 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
   const finishedAt = now();
   const totalMs = finishedAt.getTime() - startedAt.getTime();
 
-  const output = buildOutputEnvelope({
-    config,
-    startedAt,
-    finishedAt,
-    discovered,
-    records,
-    failures,
-    dryRun: false,
-  });
-
-  const writeResult = writeJsonAtomic({
-    outputDir: config.outputDir,
-    outputFile: config.outputFile,
-    data: output,
-  });
-
   logger.info("detail extraction complete", {
     duration_ms: totalMs,
     discovered: discovered.length,
-    ok: records.length,
+    stored: records.length,
     fail: failures.length,
-    ok_rate: output.stats.ok_rate + "%",
-    avg_confidence: output.stats.avg_confidence,
-    output: writeResult.outputPath,
-    bytes: writeResult.sizeBytes,
+    assets: `${assetTotals.downloaded} new / ${assetTotals.skipped} existing / ${assetTotals.failed} failed`,
+    root: rootDir,
     aborted,
   });
 
@@ -314,11 +295,19 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
 
   return {
     status: aborted ? "partial" : "ok",
+    rootDir,
     discovered,
     records,
     failures,
-    outputPath: writeResult.outputPath,
-    stats: output.stats,
+    stats: {
+      discovered: discovered.length,
+      stored: records.length,
+      failed: failures.length,
+      assets_downloaded: assetTotals.downloaded,
+      assets_skipped: assetTotals.skipped,
+      assets_failed: assetTotals.failed,
+      duration_ms: totalMs,
+    },
   };
 
   // ── Signal handler cleanup ──────────────────────────────────────────────────
@@ -326,106 +315,4 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
     process.off("SIGINT", handleShutdownSignal);
     process.off("SIGTERM", handleShutdownSignal);
   }
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Build the canonical output envelope written to disk.
- * Always has the same top-level shape regardless of dry-run / partial / full run.
- */
-function buildOutputEnvelope({
-  config,
-  startedAt,
-  finishedAt,
-  discovered,
-  records,
-  failures,
-  dryRun,
-  dryRunUrls = null,
-}) {
-  const totalMs = finishedAt - startedAt;
-  return {
-    _schema_version: 1,
-    run: {
-      at: finishedAt.toISOString(),
-      started_at: startedAt.toISOString(),
-      duration_ms: totalMs,
-      mode: config.mode,
-      city: config.city ?? null,
-      country: config.country ?? null,
-      limit_requested: config.limit || 0,
-      limit_effective: discovered.length,
-      concurrency: config.concurrency,
-      fetcher: "http",
-      browser_mode: !!config.browser,
-      dry_run: !!dryRun,
-    },
-    stats: {
-      discovered: discovered.length,
-      records_ok: records.length,
-      records_fail: failures.length,
-      ok_rate: discovered.length ? +((records.length / discovered.length) * 100).toFixed(2) : 0,
-      avg_confidence: records.length
-        ? +(records.reduce((a, r) => a + (r.confidence || 0), 0) / records.length).toFixed(3)
-        : 0,
-      fields_coverage: aggregateCoverage(records),
-    },
-    failures: failures.slice(0, 500),
-    // In dry-run mode, items holds the URL index list instead of canonical records.
-    items: dryRun ? (dryRunUrls ?? []) : records,
-  };
-}
-
-/**
- * Compute per-field presence coverage as percentages across all canonical records.
- * Returns an object where each value is 0–100 (one decimal place).
- */
-function aggregateCoverage(records) {
-  const total = records.length || 1;
-  const c = {
-    name: 0,
-    address: 0,
-    location: 0,
-    latlng: 0,
-    rating: 0,
-    capacity_max: 0,
-    capacity_configs: 0,
-    amenities_any: 0,
-    restrictions_any: 0,
-    photos_any: 0,
-    price_hint: 0,
-    venue_type: 0,
-    contacts_any: 0,
-    description: 0,
-    av_wifi: 0,
-  };
-
-  for (const r of records) {
-    if (r.name) c.name++;
-    if (r.address) c.address++;
-    if (r.location) c.location++;
-    if (r.location?.lat != null && r.location?.lng != null) c.latlng++;
-    if (r.rating) c.rating++;
-    if (r.metadata?.capacity?.max_total) c.capacity_max++;
-    if (
-      r.metadata?.capacity?.configurations &&
-      Object.keys(r.metadata.capacity.configurations).length
-    )
-      c.capacity_configs++;
-    if (r.metadata?.amenities?.length) c.amenities_any++;
-    if (r.metadata?.restrictions?.length) c.restrictions_any++;
-    if (r.photos?.gallery?.length || r.photos?.main_image) c.photos_any++;
-    if (r.metadata?.pricing?.price_range_hint) c.price_hint++;
-    if (r.metadata?.venue_type?.length) c.venue_type++;
-    if (r.metadata?.contacts?.length || r.company) c.contacts_any++;
-    if (r.description) c.description++;
-    if (r.metadata?.av_tech?.wifi) c.av_wifi++;
-  }
-
-  const out = {};
-  for (const key of Object.keys(c)) {
-    out[key] = +((c[key] / total) * 100).toFixed(1);
-  }
-  return out;
 }

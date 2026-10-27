@@ -7,19 +7,18 @@ export const SITEMAP_INDEX_URL = `${BASE_URL}/sitemap.xml`;
 // Observed on the live site (2026-10): /sitemap.xml is a <sitemapindex> listing
 // extension-less group URLs — sitemap-venues, sitemap-venues-img, sitemap-rooms,
 // sitemap-rooms-img, sitemap-static-pages, sitemap-location-pages, sitemap-blog.
-// /sitemap-rooms is a single flat <urlset> of ~24k room URLs; it is not paginated.
-// Note the .xml suffix these paths used to carry returns 404.
-export const DEFAULT_ROOMS_SITEMAP_URL = `${BASE_URL}/sitemap-rooms`;
+// /sitemap-venues is a single flat <urlset> of ~10k venue URLs; it is not
+// paginated. Note the .xml suffix these paths used to carry returns 404.
 export const DEFAULT_VENUES_SITEMAP_URL = `${BASE_URL}/sitemap-venues`;
 
-// Matches a rooms-sitemap URL — the group root or a numbered page, with or
+// Matches a venues-sitemap URL — the group root or a numbered page, with or
 // without the .xml suffix:
-//   /sitemap-rooms | /sitemap-rooms.xml | /sitemap-rooms-1 | /sitemap-rooms-23.xml
-// Anchored to the end of the path so that the -img sibling (/sitemap-rooms-img,
-// which lists image URLs rather than room pages) does not match.
-export const ROOMS_SITEMAP_RE = /\/sitemap-rooms(?:-\d+)?(?:\.xml)?$/i;
+//   /sitemap-venues | /sitemap-venues.xml | /sitemap-venues-1 | /sitemap-venues-23.xml
+// Anchored to the end of the path so that the -img sibling (/sitemap-venues-img,
+// which lists image URLs rather than venue pages) does not match.
+export const VENUES_SITEMAP_RE = /\/sitemap-venues(?:-\d+)?(?:\.xml)?$/i;
 
-// Safety ceiling for the number of pages walked when the rooms group is a
+// Safety ceiling for the number of pages walked when the venues group is a
 // <sitemapindex>. The live group is a single flat urlset, so this does not bind.
 export const SITEMAP_MAX_PAGES_DEFAULT = 100;
 
@@ -136,27 +135,10 @@ export const DOM_SELECTORS = {
   ],
 };
 
-// <loc> URL regex for rooms sitemap:
-// /rooms/<city-or-district>/<room_id:int>/<venue-slug>/<room-slug>
-export const ROOM_URL_RE =
-  /^https?:\/\/(www\.)?tagvenue\.com\/rooms\/(?<city>[^/]+)\/(?<room_id>\d+)\/(?<venue_slug>[^/]+)(\/(?<room_slug>[^/?#]+))?/;
-
-export function parseRoomUrl(url) {
-  const m = String(url || "").match(ROOM_URL_RE);
-  if (!m) return null;
-  const g = m.groups || {};
-  return {
-    url: String(url).split("#")[0].split("?")[0],
-    city: g.city || null,
-    room_id: parseInt(g.room_id, 10),
-    venue_slug: g.venue_slug || null,
-    room_slug: g.room_slug || null,
-  };
-}
-
-// Venue URL pattern: for enrichment cross-linking
+// <loc> URL regex for the venues sitemap:
+// /venues/<city>/<venue_id:int>/<venue-slug>
 export const VENUE_URL_RE =
-  /^https?:\/\/(www\.)?tagvenue\.com\/venue[s]?\/(?<city>[^/]+)\/(?<venue_id>\d+)\/(?<venue_slug>[^/?#]+)/;
+  /^https?:\/\/(www\.)?tagvenue\.com\/venues\/(?<city>[^/]+)\/(?<venue_id>\d+)\/(?<venue_slug>[^/?#]+)/;
 
 export function parseVenueUrl(url) {
   const m = String(url || "").match(VENUE_URL_RE);
@@ -168,6 +150,60 @@ export function parseVenueUrl(url) {
     venue_id: parseInt(g.venue_id, 10),
     venue_slug: g.venue_slug || null,
   };
+}
+
+// ─── Photo assets ────────────────────────────────────────────────────────────
+//
+// Every Tagvenue photo is served through a resize path whose last segment is
+// "<transform>;<key>.<ext>". The key is stable across variants, so one photo
+// maps to exactly one asset file no matter which variant the page happens to
+// reference:
+//
+//   /resize/14/2f/widen-1680-noupsize;7-the-royal-horseguards-venue.jpg
+//   /resize/14/2f/fit-900-600;7-the-royal-horseguards-venue.jpg
+//                    └─────┬─────┘ └──────────────┬──────────────────┘
+//                       transform             asset key
+//
+// Site chrome (logos, favicons) is served outside /resize/ and is not a photo.
+export const TAGVENUE_PHOTO_RE =
+  /\/resize\/[^/]+\/[^/]+\/(?<transform>[^/;]+);(?<key>[^/;?#]+\.(?:jpe?g|png|webp))$/i;
+
+export function parsePhotoUrl(url) {
+  const m = String(url || "").match(TAGVENUE_PHOTO_RE);
+  if (!m) return null;
+  const g = m.groups || {};
+  return { url: absoluteUrl(url), file: g.key, transform: g.transform };
+}
+
+/**
+ * Collapse a list of photo URLs into one entry per photo, keeping the widest
+ * variant. Returns [{ file, url, transform }] whose `file` values are the
+ * predictable asset names — re-scraping the same venue rewrites the same files.
+ */
+export function pickPhotoVariants(urls) {
+  const best = new Map();
+  for (const raw of urls || []) {
+    const photo = parsePhotoUrl(raw);
+    if (!photo) continue;
+    const prev = best.get(photo.file);
+    if (!prev || photoScore(photo.transform) > photoScore(prev.transform)) {
+      best.set(photo.file, photo);
+    }
+  }
+  return [...best.values()];
+}
+
+/** Ranks a transform: uncropped "widen-*" first, then by the largest number. */
+function photoScore(transform) {
+  const t = String(transform || "").toLowerCase();
+  const size = Math.max(0, ...(t.match(/\d+/g) || ["0"]).map(Number));
+  return (t.startsWith("widen") ? 1_000_000 : 0) + size;
+}
+
+function absoluteUrl(url) {
+  const s = String(url || "");
+  if (/^https?:\/\//i.test(s)) return s;
+  return `${BASE_URL}${s.startsWith("/") ? "" : "/"}${s}`;
 }
 
 export function cheerioAttrOrText($, selectors) {

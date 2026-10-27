@@ -4,7 +4,9 @@ import { run } from "./run.js";
 
 const HELP = `Usage: docintelligence-mc-ingest-tagvenue-scraper [options]
 
-Tagvenue.com venue and room scraper. Produces master venue-compatible JSON.
+Tagvenue.com venue scraper. Stores one canonical record per venue as
+<output-dir>/mc-ingest/tagvenue-<venue_id>/venue.json with its photos in the
+sibling assets/ folder.
 
 Configuration priority: defaults → TV_* env vars → --config file → CLI args
 
@@ -12,7 +14,7 @@ Options:
   -h, --help                      Print this help and exit
       --config <file.json>        Merge in keys from a JSON file
   -m, --mode <str>                Discovery mode: sitemap | search | urls-file (default: sitemap)
-      --city <str>                City filter (search mode) and output slug
+      --city <str>                City filter (search mode)
       --country <CC>              2-letter ISO country code
       --people <int>              Minimum attendee count filter
       --date <YYYY-MM-DD>         Date filter for availability search
@@ -21,13 +23,13 @@ Options:
       --min-price <int>           Minimum price filter
       --max-price <int>           Maximum price filter
       --page <int>                Starting page for search mode (default: 1)
-  -l, --limit <int>               Max room URLs to detail-scrape. 0 = unlimited (default: 100)
+  -l, --limit <int>               Max venue URLs to detail-scrape. 0 = unlimited (default: 100)
       --urls-file <path>          Line-delimited URLs file (mode urls-file)
-      --sitemap-since <value>     Only include rooms whose sitemap lastmod >= this value.
+      --sitemap-since <value>     Only include venues whose sitemap lastmod >= this value.
                                   Accepts an ISO date (2024-06-01) or a relative shorthand
                                   (7d = last 7 days, 2w = last 2 weeks, 1m = last 30 days).
                                   Entries with no lastmod are always included. (default: none)
-      --sitemap-max-pages <int>   Maximum number of paginated sitemap-rooms-N.xml pages to
+      --sitemap-max-pages <int>   Maximum number of paginated sitemap-venues-N pages to
                                   fetch in sitemap mode (default: 100)
   -c, --concurrency <int>         Concurrent detail-pass requests (default: 5)
       --min-delay-ms <int>        Min delay between requests ms (default: 600)
@@ -38,11 +40,10 @@ Options:
       --proxy <url>               http(s) proxy URL: http://user:pass@host:port
       --browser                   Use Playwright Chromium for detail pass (default: off)
       --no-browser-stealth        Disable playwright-stealth in browser mode
-  -o, --output-dir <dir>          Directory to write JSON/log (default: /data)
-      --output-file <name>        Output file name inside output-dir (default auto)
+  -o, --output-dir <dir>          Directory holding the mc-ingest tree and logs (default: /data)
       --log-level <lvl>           trace | debug | info | warn | error (default: info)
       --log-file <name>           Also tee logs to this file inside output-dir
-      --dry-run                   Run discovery only and print URLs (no detail pass)
+      --dry-run                   Run discovery only and print URLs (nothing written)
 
 Environment variables (TV_ prefix, 1:1 with options above):
   TV_MODE TV_CITY TV_COUNTRY TV_PEOPLE TV_DATE TV_TIME_FROM TV_TIME_TO
@@ -50,13 +51,13 @@ Environment variables (TV_ prefix, 1:1 with options above):
   TV_SITEMAP_SINCE TV_SITEMAP_MAX_PAGES
   TV_CONCURRENCY TV_MIN_DELAY_MS TV_JITTER_MS TV_TIMEOUT_MS TV_RETRIES
   TV_USER_AGENT TV_PROXY TV_BROWSER TV_BROWSER_STEALTH
-  TV_OUTPUT_DIR TV_OUTPUT_FILE TV_LOG_LEVEL TV_LOG_FILE TV_DRY_RUN
+  TV_OUTPUT_DIR TV_LOG_LEVEL TV_LOG_FILE TV_DRY_RUN
 
 Examples:
-  # Full sitemap scrape (all pages, no lastmod filter)
+  # Full sitemap scrape (all venues, no lastmod filter)
   docintelligence-mc-ingest-tagvenue-scraper --mode sitemap -l 0 -o ./data
 
-  # Incremental: only rooms updated in the last 7 days
+  # Incremental: only venues updated in the last 7 days
   docintelligence-mc-ingest-tagvenue-scraper --mode sitemap --sitemap-since 7d -l 0
 
   # Targeted city run with dry-run URL preview
@@ -76,9 +77,11 @@ async function main() {
     const result = await run(config, { fsModule: fs });
     const summary = {
       status: result.status,
-      outputPath: config.outputPath,
+      ingestDir: result.rootDir,
       discovered: result.discovered?.length ?? 0,
-      records: result.records?.length ?? 0,
+      stored: result.stats?.stored ?? 0,
+      failed: result.stats?.failed ?? 0,
+      assets: `${result.stats?.assets_downloaded ?? 0} new / ${result.stats?.assets_skipped ?? 0} existing / ${result.stats?.assets_failed ?? 0} failed`,
       mode: config.mode,
       browser: config.browser,
     };
