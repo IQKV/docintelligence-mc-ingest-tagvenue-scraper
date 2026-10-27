@@ -126,7 +126,7 @@ Desktop.ini
 ######################
 # Directories
 ######################
-/bin/
+# NOTE: /bin/ is NOT ignored — the Node CLI entrypoint lives in bin/scrape.js.
 /deploy/
 
 ######################

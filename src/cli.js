@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { resolveConfig } from "./config.js";
 import { run } from "./run.js";
 
-const HELP = `Usage: venueintelligence-mc-ingest-tagvenue-scraper [options]
+const HELP = `Usage: docintelligence-mc-ingest-tagvenue-scraper [options]
 
 Tagvenue.com venue and room scraper. Produces master venue-compatible JSON.
 
@@ -54,16 +54,16 @@ Environment variables (TV_ prefix, 1:1 with options above):
 
 Examples:
   # Full sitemap scrape (all pages, no lastmod filter)
-  venueintelligence-mc-ingest-tagvenue-scraper --mode sitemap -l 0 -o ./data
+  docintelligence-mc-ingest-tagvenue-scraper --mode sitemap -l 0 -o ./data
 
   # Incremental: only rooms updated in the last 7 days
-  venueintelligence-mc-ingest-tagvenue-scraper --mode sitemap --sitemap-since 7d -l 0
+  docintelligence-mc-ingest-tagvenue-scraper --mode sitemap --sitemap-since 7d -l 0
 
   # Targeted city run with dry-run URL preview
-  venueintelligence-mc-ingest-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
+  docintelligence-mc-ingest-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
 
   # Scrape a hand-picked list of URLs
-  venueintelligence-mc-ingest-tagvenue-scraper --mode urls-file --urls-file ./urls.txt
+  docintelligence-mc-ingest-tagvenue-scraper --mode urls-file --urls-file ./urls.txt
 `;
 
 async function main() {
@@ -73,7 +73,7 @@ async function main() {
     process.exit(0);
   }
   try {
-    const result = await run(config, { fs });
+    const result = await run(config, { fsModule: fs });
     const summary = {
       status: result.status,
       outputPath: config.outputPath,

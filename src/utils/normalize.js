@@ -275,7 +275,9 @@ const AMENITIES_RULES = [
   { re: /\b(flipchart|flip chart)\b/i, key: "flipchart" },
   { re: /\b(conference call|video conference|teams|zoom|polycom)\b/i, key: "conference_call" },
   {
-    re: /\b(air.?condition|aircon|a\/c|ac |climate control|cooling|heating)\b/i,
+    // The trailing \b in the old pattern rejected the common "Air conditioner"/"Air conditioning"
+    // wording; the optional suffix keeps "condition" + \b working while allowing those forms.
+    re: /\b(air.?condition(?:er|ing|ed)?|aircon|a\/c|ac |climate control|cooling|heating)\b/i,
     key: "air_conditioning",
   },
   { re: /\b(natural light|daylight|natural daylight|windows)\b/i, key: "natural_light" },
@@ -308,7 +310,9 @@ const AMENITIES_RULES = [
     key: "alcohol_licence_until",
   },
   {
-    re: /\b(live music|play own music|dj permitted|music allowed|music policy)?(?!not)\b/i,
+    // The old pattern had an optional group, so it matched every non-empty line and always set
+    // play_own_music_allowed. Require an explicit positive phrase and skip "no/not ..." wording.
+    re: /(?<!\bno )(?<!\bnot )\b(play (?:your|own) music|own music|live music|dj permitted|music (?:is )?allowed|music policy)\b/i,
     key: "play_own_music_allowed",
   },
   { re: /\b(dj allowed|own dj|bring your own dj|byo dj)\b/i, key: "byo_dj_allowed" },

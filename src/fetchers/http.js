@@ -18,6 +18,7 @@ async function buildProxyAgent(proxyUrl) {
   } catch {
     // hpagent not installed → fall back to https-proxy-agent if present, else throw
     try {
+      // @ts-ignore optional dependency: only installed when a proxy is configured
       const mod = await import("https-proxy-agent");
       const Ctor = mod.HttpsProxyAgent || mod.default;
       const agent = new Ctor(p);
@@ -35,6 +36,16 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * @param {{
+ *   userAgent?: string,
+ *   timeoutMs?: number,
+ *   retries?: number,
+ *   proxy?: string | null,
+ *   accept?: string,
+ *   extraHeaders?: Record<string, string>,
+ * }} [options]
+ */
 export function createHttpFetcher({
   userAgent,
   timeoutMs = 15_000,
@@ -66,10 +77,10 @@ export function createHttpFetcher({
         });
         const res = await instance.get(url, { signal: options.signal });
         if ([408, 429, 500, 502, 503, 504].includes(res.status)) {
-          const msg = `HTTP ${res.status} for ${url}`;
-          const err = new Error(msg);
-          err.status = res.status;
-          err.retryable = true;
+          const err = Object.assign(new Error(`HTTP ${res.status} for ${url}`), {
+            status: res.status,
+            retryable: true,
+          });
           throw err;
         }
         return res;

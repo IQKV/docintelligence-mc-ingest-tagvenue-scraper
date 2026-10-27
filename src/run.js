@@ -31,7 +31,7 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
     outputDir: config.outputDir,
   });
 
-  logger.info("venueintelligence-mc-ingest-tagvenue-scraper starting", {
+  logger.info("docintelligence-mc-ingest-tagvenue-scraper starting", {
     mode: config.mode,
     city: config.city ?? null,
     country: config.country ?? null,
@@ -280,7 +280,7 @@ export async function run(config, { fsModule = fs, now = () => new Date() } = {}
   }
 
   const finishedAt = now();
-  const totalMs = finishedAt - startedAt;
+  const totalMs = finishedAt.getTime() - startedAt.getTime();
 
   const output = buildOutputEnvelope({
     config,
@@ -342,7 +342,7 @@ function buildOutputEnvelope({
   records,
   failures,
   dryRun,
-  dryRunUrls,
+  dryRunUrls = null,
 }) {
   const totalMs = finishedAt - startedAt;
   return {

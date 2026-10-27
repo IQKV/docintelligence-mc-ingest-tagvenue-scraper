@@ -1,0 +1,202 @@
+{
+  "_schema_version": 1,
+  "run": {
+    "at": "2026-01-01T09:03:42.000Z",
+    "started_at": "2026-01-01T09:00:00.000Z",
+    "duration_ms": 222000,
+    "mode": "search",
+    "city": "london",
+    "country": "GB",
+    "limit_requested": 100,
+    "limit_effective": 1,
+    "concurrency": 5,
+    "fetcher": "http",
+    "browser_mode": false,
+    "dry_run": false
+  },
+  "stats": {
+    "discovered": 1,
+    "records_ok": 1,
+    "records_fail": 0,
+    "ok_rate": 100,
+    "avg_confidence": 0.82,
+    "fields_coverage": {
+      "name": 100,
+      "address": 100,
+      "location": 100,
+      "latlng": 100,
+      "rating": 100,
+      "capacity_max": 100,
+      "capacity_configs": 100,
+      "amenities_any": 100,
+      "restrictions_any": 0,
+      "photos_any": 100,
+      "price_hint": 100,
+      "venue_type": 100,
+      "contacts_any": 100,
+      "description": 100,
+      "av_wifi": 100
+    }
+  },
+  "failures": [],
+  "items": [
+    {
+      "_schema_version": 1,
+      "external_id": "tagvenue:room:25426",
+      "external_source": "tagvenue",
+      "source": "web_scrape",
+      "name": "Mala Madre Events Space at The Last Talisman",
+      "aliases": ["Mala Madre Events Space"],
+      "address": "171-173 Bermondsey Street, London, SE1 3UW, GB",
+      "city": "London",
+      "country_code": "GB",
+      "postal_code": "SE1 3UW",
+      "location": {
+        "lat": 51.499067,
+        "lng": -0.0808991
+      },
+      "description": "A stone's throw from London Bridge Station.",
+      "nearest_station": {
+        "name": "London Bridge Station",
+        "distance_miles": 0.5
+      },
+      "venue_name": "The Last Talisman",
+      "company": {
+        "manager_name": "Dovile S."
+      },
+      "tagvenue_ids": {
+        "room_id": 25426,
+        "venue_id": null,
+        "venue_slug": "the-last-talisman",
+        "room_slug": "mala-madre-events-space",
+        "city_slug": "london"
+      },
+      "rating": {
+        "value": 4.7,
+        "review_count": 588,
+        "source": "tagvenue"
+      },
+      "photos": {
+        "count": 1,
+        "main_image": "https://example.com/main.jpg",
+        "gallery": ["https://example.com/main.jpg"]
+      },
+      "source_url": "https://www.tagvenue.com/rooms/london/25426/the-last-talisman/mala-madre-events-space",
+      "metadata": {
+        "_schema_version": 1,
+        "capacity": {
+          "max_total": 90,
+          "configurations": {
+            "standing": 90,
+            "banquet": 60,
+            "theater": 40
+          },
+          "min_attendees_per_event": null
+        },
+        "venue_type": ["restaurant_private_event_space"],
+        "catering": {
+          "policy": "external_not_allowed_or_unknown",
+          "kosher_available": null,
+          "halal_available": null,
+          "vegan_available": null,
+          "vegetarian_available": null,
+          "gluten_free_available": null,
+          "alcohol_licence_until": null,
+          "byo_alcohol_allowed": null,
+          "external_catering_allowed": null,
+          "cuisines_available": []
+        },
+        "av_tech": {
+          "built_in_av": null,
+          "wifi": true,
+          "projector": true,
+          "screens": 2,
+          "speakers": null,
+          "pa_system": null,
+          "flatscreen_tv": true,
+          "whiteboard": null,
+          "flipchart": null,
+          "conference_call": null
+        },
+        "accessibility": {
+          "ada_compliant": null,
+          "elevator_access": null,
+          "accessible_restrooms": null,
+          "wheelchair_stage_access": null,
+          "wheelchair_accessible": null,
+          "ground_level": null,
+          "disabled_parking": null,
+          "cargo_lift": null,
+          "step_free": null
+        },
+        "logistics": {
+          "air_conditioning": true,
+          "natural_light": true,
+          "private_bar": null,
+          "private_entrance": null,
+          "private_toilets": null,
+          "parking_available": null,
+          "paid_parking_nearby": null,
+          "storage_space": null,
+          "quiet_space": null,
+          "noise_restriction_after": null,
+          "alcohol_licence": null
+        },
+        "amenities": [
+          "Wi-Fi",
+          "Projector",
+          "Flatscreen TV",
+          "Air conditioner",
+          "Natural light",
+          "Wi-Fi Projector Flatscreen TV Air conditioner Natural light",
+          "Standing: 90",
+          "Banquet: 60",
+          "Theatre: 40"
+        ],
+        "restrictions": [],
+        "pricing": {
+          "currency": "GBP",
+          "minimum_spend": 10,
+          "rental_fee_indicative": null,
+          "price_range_hint": "from £10 per person / per session",
+          "price_method": "per_person_per_session"
+        },
+        "music_and_sound": {
+          "play_own_music_allowed": null,
+          "byo_dj_allowed": null,
+          "noise_restriction_after": null
+        },
+        "contacts": [
+          {
+            "name": "Dovile S.",
+            "role": "Venue Manager"
+          }
+        ]
+      },
+      "reviews": [
+        {
+          "author": "Luisa P.",
+          "date": "2025-09-09",
+          "rating": 4.8,
+          "text": "Amazing space!"
+        }
+      ],
+      "confidence": 0.82,
+      "scrape_run": {
+        "at": "2026-01-01T09:03:42.000Z",
+        "fetcher": "http",
+        "fetcher_version": "0.1.0",
+        "duration_ms": 18,
+        "http_status": 200,
+        "coverage": {
+          "has_json_ld": true,
+          "features_count": 6,
+          "restrictions_count": 0,
+          "gallery_count": 1,
+          "reviews_count": 1,
+          "spec_rows_count": 0
+        }
+      }
+    }
+  ]
+}

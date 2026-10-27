@@ -1,8 +1,8 @@
-# venueintelligence-mc-ingest-tagvenue-scraper
+# docintelligence-mc-ingest-tagvenue-scraper
 
 > **Tagvenue → Shortlisty Master Catalog Ingestion** - Lightweight Node.js CLI scraper for Tagvenue.com venue and room listings. Produces `MasterVenueRecord`-compatible JSON files for cold-start ingestion into the Shortlisty Intelligence internal platform **Venue Master Catalog** (`public.master_venue`).
 
-[![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--master--catalog--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/venueintelligence-mc-ingest-tagvenue-scraper)
+[![GitHub repo](https://img.shields.io/badge/repo-IQKV%2Fmi--master--catalog--tagvenue--scraper-blue?logo=github)](https://github.com/IQKV/docintelligence-mc-ingest-tagvenue-scraper)
 [![Status](https://img.shields.io/badge/status-MVP-yellow)](#)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.13.0-brightgreen)](#engines)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
@@ -46,7 +46,7 @@ Think of it as: the **Tagvenue provider adapter that converts public Tagvenue HT
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        venueintelligence-mc-ingest-tagvenue-scraper                  │
+│                        docintelligence-mc-ingest-tagvenue-scraper                  │
 │                                                                       │
 │  PASS 1 — DISCOVERY (collect /rooms/... URLs)                         │
 │                                                                       │
@@ -344,7 +344,7 @@ DEFAULTS (hardcoded in src/config.js)
 ### 6.2 Local installation
 
 ```bash
-cd venueintelligence-mc-ingest-tagvenue-scraper
+cd docintelligence-mc-ingest-tagvenue-scraper
 
 # Install deps (playwright is optional; pnpm installs it by default because it's "optionalDependencies")
 pnpm install
@@ -387,17 +387,17 @@ pnpm start \
 
 ```bash
 # 1. Build the SSR-only slim image (~140MB compressed; excludes Playwright browsers)
-docker build -t iqkv/venueintelligence-mc-ingest-tagvenue-scraper:latest .
+docker build -t iqkv/docintelligence-mc-ingest-tagvenue-scraper:latest .
 
 # 2. Or build the with-browser variant (tagged separately, ~800MB, includes Chromium + deps)
 docker build \
   --build-arg INSTALL_PLAYWRIGHT=1 \
-  -t iqkv/venueintelligence-mc-ingest-tagvenue-scraper:with-browser .
+  -t iqkv/docintelligence-mc-ingest-tagvenue-scraper:with-browser .
 
 # 3. Run sitemap 100-venue scrape into local ./data dir
 docker run --rm \
   -v "$(pwd)/data:/data" \
-  iqkv/venueintelligence-mc-ingest-tagvenue-scraper:latest \
+  iqkv/docintelligence-mc-ingest-tagvenue-scraper:latest \
   --mode sitemap --limit 100
 
 # 4. Run city search filtered via ENV vars (no CLI args)
@@ -408,13 +408,13 @@ docker run --rm \
   -e TV_COUNTRY=GB \
   -e TV_PEOPLE=100 \
   -e TV_LIMIT=30 \
-  iqkv/venueintelligence-mc-ingest-tagvenue-scraper:latest
+  iqkv/docintelligence-mc-ingest-tagvenue-scraper:latest
 
 # 5. With-browser variant for JS-rendered pricing tables
 docker run --rm \
   -v "$(pwd)/data:/data" \
   -e TV_PROXY='http://user:pass@residential-proxy.example:22225' \
-  iqkv/venueintelligence-mc-ingest-tagvenue-scraper:with-browser \
+  iqkv/docintelligence-mc-ingest-tagvenue-scraper:with-browser \
   --browser --mode search --city madrid --country ES --limit 25
 ```
 
@@ -434,7 +434,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: scraper
-          image: iqkv/venueintelligence-mc-ingest-tagvenue-scraper:latest
+          image: iqkv/docintelligence-mc-ingest-tagvenue-scraper:latest
           imagePullPolicy: IfNotPresent
           resources:
             requests: { cpu: "250m", memory: "128Mi" }
@@ -488,7 +488,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: scraper
-              image: iqkv/venueintelligence-mc-ingest-tagvenue-scraper:latest
+              image: iqkv/docintelligence-mc-ingest-tagvenue-scraper:latest
               args: ["--mode", "sitemap", "--limit", "0", "--concurrency", "4"]
               resources:
                 requests: { cpu: "500m", memory: "256Mi" }
@@ -511,7 +511,7 @@ The scraped JSON is dropped into `/data` shared PV; wire a follow-up **`shortlis
 ## 7. Project Structure
 
 ```
-venueintelligence-mc-ingest-tagvenue-scraper/
+docintelligence-mc-ingest-tagvenue-scraper/
 ├── bin/
 │   └── scrape.js                 # CLI entrypoint — shebang + delegates to src/cli.js
 ├── src/
@@ -584,7 +584,7 @@ This scraper is the **Tagvenue provider adapter** of the Shortlisty internal **V
 │  INGESTION DECOMPOSITION — 4 small workers, NOT 1 big processing-worker             │
 │                                                                                     │
 │  ┌───────────────────────────────┐                                                   │
-│  │ venueintelligence-mc-ingest-tagvenue-scraper │  ◀  YOU ARE HERE. Node.js SSR / Browser CLI.     │
+│  │ docintelligence-mc-ingest-tagvenue-scraper │  ◀  YOU ARE HERE. Node.js SSR / Browser CLI.     │
 │  │  (K8s Job / CronJob, Node.js) │    Stateless. NO DB connections, EVER.         │
 │  └────────────┬──────────────────┘                                                   │
 │               │ writes JSON envelope: List<MasterVenueRecord>                       │

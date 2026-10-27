@@ -17,6 +17,7 @@ export function createLogger({
 } = {}) {
   const numericLevel = typeof level === "number" ? level : (LEVELS[level] ?? LEVELS.info);
 
+  /** @type {(line: string) => void} */
   let writeToFile = noop;
   if (logFile && fs && outputDir) {
     const path = `${outputDir.replace(/\/$/, "")}/${logFile}`;

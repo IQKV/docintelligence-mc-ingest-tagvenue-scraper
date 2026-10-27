@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**venueintelligence-mc-ingest-tagvenue-scraper** — CLI scraper for Tagvenue.com. Crawls venue and room listings via sitemap discovery and HTTP fetching, extracts structured data, normalises it into canonical master-venue-compatible JSON, and writes it for ingestion into the Shortlisty Intelligence venue registry.
+**docintelligence-mc-ingest-tagvenue-scraper** — CLI scraper for Tagvenue.com. Crawls venue and room listings via sitemap discovery and HTTP fetching, extracts structured data, normalises it into canonical master-venue-compatible JSON, and writes it for ingestion into the Shortlisty Intelligence venue registry.
 
 **Key characteristics:**
 

@@ -15,6 +15,17 @@ import {
 
 const NOOP = () => {};
 
+/**
+ * @param {{
+ *   url: string,
+ *   html: string,
+ *   logger?: {
+ *     debug?: (msg: string, meta?: Record<string, unknown>) => void,
+ *     info?: (msg: string, meta?: Record<string, unknown>) => void,
+ *     warn?: (msg: string, meta?: Record<string, unknown>) => void,
+ *   },
+ * }} args
+ */
 export function extractTagvenueRecord({
   url,
   html,
@@ -24,7 +35,7 @@ export function extractTagvenueRecord({
   const parsed = parseRoomUrl(url);
   const fallbackUrl = parsed?.url || String(url).split("?")[0].split("#")[0];
 
-  const $ = cheerio.load(html, { xmlMode: false, decodeEntities: true });
+  const $ = cheerio.load(html, { xmlMode: false });
 
   // 1. JSON-LD primary extraction
   const ldBlocks = ldBlocksFromHtml(html);

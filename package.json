@@ -1,11 +1,11 @@
 {
-  "name": "@iqkv/venueintelligence-mc-ingest-tagvenue-scraper",
+  "name": "@iqkv/docintelligence-mc-ingest-tagvenue-scraper",
   "version": "0.1.0",
   "private": true,
   "description": "Tagvenue.com venue and room listing scraper. Produces canonical master venue-compatible JSON for ingestion into the Shortlisty Intelligence venue registry.",
   "license": "SEE LICENSE IN LICENSE",
   "bin": {
-    "venueintelligence-mc-ingest-tagvenue-scraper": "./bin/scrape.js"
+    "docintelligence-mc-ingest-tagvenue-scraper": "./bin/scrape.js"
   },
   "type": "module",
   "main": "./src/index.js",
@@ -13,9 +13,8 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "start": "node ./bin/scrape.js",
-    "dev": "node --watch ./bin/scrape.js --log-level debug",
     "cli:help": "node ./bin/scrape.js --help",
+    "dev": "node --watch ./bin/scrape.js --log-level debug",
     "formatter:check": "oxfmt --check",
     "formatter:write": "oxfmt --write",
     "lint": "pnpm lint:oxlint",
@@ -23,8 +22,9 @@
     "node_modules:cleanup": "rm -rf node_modules",
     "prepare": "husky",
     "release": "release-it --ci",
-    "test": "echo \"No tests yet\" && exit 0",
-    "typecheck": "tsc -p jsconfig.json --noEmit || true"
+    "start": "node ./bin/scrape.js",
+    "test": "node --test",
+    "typecheck": "tsc -p jsconfig.json --noEmit"
   },
   "dependencies": {
     "axios": "^1.20.0",
@@ -39,6 +39,7 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@release-it/conventional-changelog": "^12.0.2",
+    "@types/node": "^22.10.0",
     "cz-conventional-changelog": "^3.3.0",
     "husky": "9.1.7",
     "lint-staged": "^17.6.0",
@@ -48,7 +49,8 @@
     "prettier-plugin-packagejson": "^3.0.2",
     "release-it": "^21.1.1",
     "release-it-pnpm": "^4.6.6",
-    "sort-package-json": "^4.1.0"
+    "sort-package-json": "^4.1.0",
+    "typescript": "^5.7.0"
   },
   "optionalDependencies": {
     "hpagent": "^1.2.0",
