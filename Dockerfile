@@ -14,13 +14,16 @@ COPY package.json pnpm-lock.yaml* ./
 # Slim image (default): install production deps.
 # playwright is optional; pnpm skips it when the platform lacks the binary
 # unless the user forces it via INSTALL_PLAYWRIGHT build-arg.
+# --ignore-scripts: without it pnpm still runs the project's own lifecycle
+# scripts, and "prepare": "husky" fails here because husky is a devDependency
+# and --prod skipped it. No runtime dependency needs a build step.
 ARG INSTALL_PLAYWRIGHT=0
 
 RUN \
   if [ "$INSTALL_PLAYWRIGHT" = "1" ]; then \
-    pnpm install --prod --frozen-lockfile; \
+    pnpm install --prod --frozen-lockfile --ignore-scripts; \
   else \
-    pnpm install --prod --frozen-lockfile --no-optional; \
+    pnpm install --prod --frozen-lockfile --no-optional --ignore-scripts; \
   fi
 
 # ================= Stage 2: slim runtime =================
