@@ -4,14 +4,18 @@
  * Discovery pipeline (sitemap mode):
  *
  *   1. robots.txt  → look for a Sitemap: directive pointing to a rooms sitemap
+ *                    (the live robots.txt declares none, so this rarely fires)
  *   2. /sitemap.xml (sitemapindex) → find the rooms group entry
- *   3. rooms group URL  → may itself be a sitemapindex listing paginated pages
- *                          (sitemap-rooms-1.xml, sitemap-rooms-2.xml, …)
- *      OR a plain urlset with <loc> entries directly.
- *   4. For each paginated page: fetch, extract <loc> entries, apply lastmod filter.
- *   5. robots.txt allow-check on every collected URL.
+ *   3. rooms group URL → normally a flat <urlset> with ~24k room URLs. A
+ *                        <sitemapindex> listing paginated pages is still handled
+ *                        (sitemap-rooms-1, sitemap-rooms-2, …) in case the group
+ *                        is split up later.
+ *   4. extract <loc> entries, apply the lastmod filter
+ *   5. robots.txt allow-check on every collected URL
  *
  * All steps degrade gracefully: if a step fails the next fallback is tried.
+ * Non-2xx responses count as failures — a 404 must never look like an empty
+ * sitemap, which would silently yield zero URLs.
  */
 
 import {
@@ -181,11 +185,11 @@ async function sitemapDiscover({ http, robots, config, logger }) {
   if (!roomsGroupUrl) {
     try {
       const idxRes = await http.xml(SITEMAP_INDEX_URL, { timeoutMs: 20_000, retries: 3 });
+      // A 4xx/5xx body is an error page, not a sitemap — surface it instead of
+      // parsing it into zero entries.
+      if (idxRes.status >= 400) throw new Error(`HTTP ${idxRes.status}`);
       const entries = extractEntries(idxRes.body);
-      // Find the rooms group — prefer a numbered page-1 entry, else any rooms entry.
-      const roomsEntry =
-        entries.find((e) => /sitemap-rooms-1\.xml/i.test(e.loc)) ??
-        entries.find((e) => ROOMS_SITEMAP_RE.test(e.loc));
+      const roomsEntry = entries.find((e) => ROOMS_SITEMAP_RE.test(e.loc));
       if (roomsEntry) {
         roomsGroupUrl = roomsEntry.loc;
         logger?.debug?.(`sitemap index resolved rooms group: ${roomsGroupUrl}`);
@@ -203,13 +207,13 @@ async function sitemapDiscover({ http, robots, config, logger }) {
 
   // ── Step 4: resolve the rooms group — one or two levels deep ────────────
   //
-  // Tagvenue structure (observed):
-  //   /sitemap-rooms.xml        → <sitemapindex> listing sitemap-rooms-1.xml … sitemap-rooms-N.xml
-  //   /sitemap-rooms-1.xml      → <urlset> with <loc> entries for room detail pages
+  // Tagvenue structure (observed on the live site, 2026-10):
+  //   /sitemap-rooms        → flat <urlset> with ~24k room detail URLs
   //
-  // We handle both:
-  //   a) roomsGroupUrl is already a paginated page (<urlset>)
-  //   b) roomsGroupUrl is a <sitemapindex> listing the paginated pages
+  // The paginated shape below is handled too, so the group keeps working if
+  // Tagvenue ever splits it:
+  //   /sitemap-rooms        → <sitemapindex> listing sitemap-rooms-1 … sitemap-rooms-N
+  //   /sitemap-rooms-1      → <urlset> with <loc> entries for room detail pages
 
   const allLocs = await resolveRoomsUrls({
     http,
@@ -245,7 +249,7 @@ async function sitemapDiscover({ http, robots, config, logger }) {
 /**
  * Fetch `rootUrl`, determine whether it is a sitemapindex or a urlset, then:
  *
- *  - urlset   → extract locs directly (this is already a paginated page)
+ *  - urlset   → extract locs directly (the group is a single flat sitemap)
  *  - sitemapindex → enumerate child pages up to `maxPages`, applying `sinceDate`
  *                   early-exit to skip pages whose newest lastmod is older than
  *                   sinceDate (pages are roughly newest-first on Tagvenue).
@@ -256,6 +260,9 @@ async function resolveRoomsUrls({ http, rootUrl, sinceDate, maxPages, logger }) 
   let rootXml;
   try {
     const res = await http.xml(rootUrl, { timeoutMs: 60_000, retries: 3 });
+    // http.xml resolves 4xx bodies without throwing, so check the status here:
+    // a 404 must fail loudly rather than parse an error page into zero entries.
+    if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
     rootXml = res.body;
   } catch (err) {
     throw new Error(`Failed to fetch rooms sitemap root (${rootUrl}): ${err.message ?? err}`);
@@ -288,6 +295,7 @@ async function resolveRoomsUrls({ http, rootUrl, sinceDate, maxPages, logger }) 
     let pageXml;
     try {
       const res = await http.xml(pageUrl, { timeoutMs: 60_000, retries: 3 });
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
       pageXml = res.body;
     } catch (err) {
       logger?.warn?.(`sitemap page ${pageUrl} failed (${err.message ?? err}); skipping`);

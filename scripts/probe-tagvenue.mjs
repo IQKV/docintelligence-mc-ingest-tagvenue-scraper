@@ -103,7 +103,7 @@ async function probe(url, label) {
 
 await probe("https://www.tagvenue.com/robots.txt", "robots");
 await probe("https://www.tagvenue.com/sitemap.xml", "sitemap-index");
-await probe("https://www.tagvenue.com/sitemap-rooms-1.xml", "sitemap-rooms (sample)");
+await probe("https://www.tagvenue.com/sitemap-rooms", "sitemap-rooms (flat urlset)");
 await probe(
   "https://www.tagvenue.com/rooms/london/25426/the-last-talisman/mala-madre-events-space",
   "detail-rooms-25426",
