@@ -20,6 +20,7 @@ Key characteristics:
 - **Stateless, single-binary container** — one image, many cities/runs, no rebuilds to change parameters.
 - **Two-pass model** — discovery (sitemap / search pagination) + detail extraction.
 - **One folder per venue, predictable paths** — `<outputDir>/mc-ingest/tagvenue-<venue_id>/venue.json` plus a sibling `assets/` folder for photos. A re-run overwrites the same paths, so repeated runs never accumulate copies.
+- **Incremental & resumable** — `--skip-existing` with `--limit N` adds the next N venues that are not stored yet, so the catalog fills over successive runs and the job settles into a no-op once complete.
 - **Lightweight default (axios + cheerio, SSR HTML)** for 80% of fields via JSON-LD schema.org.
 - **Optional Playwright browser mode** (`--browser` / `TV_BROWSER=true`) for JS-rendered pricing.
 - **Robots.txt compliant** out of the box with `robots-parser`.
@@ -132,6 +133,22 @@ On start the scraper creates **one ingest tree** under `<outputDir>` and keeps e
 - `assets/` holds one file per **photo key**, not per URL variant. Tagvenue serves the same photo through many `/resize/<a>/<b>/<transform>;<key>.<ext>` variants; the scraper collapses them to the widest variant and names the file after `<key>`. Files already on disk are skipped, so repeated runs do not duplicate photos.
 - Photo download failures are logged and counted, never fatal — the record is still written.
 - There is **no aggregate run file**. Statistics are printed to the log and returned to the CLI, which reports them as a `[SUMMARY]` line.
+
+### Growing the catalog incrementally
+
+`--skip-existing` drops every venue whose `venue.json` is already stored, and it does so **before** `--limit` is applied. That single ordering makes `--limit` mean "the next N venues I don't have yet" instead of "the first N venues":
+
+```
+node bin/scrape.js --mode sitemap --skip-existing --limit 500   # run 1 → venues 1…500
+node bin/scrape.js --mode sitemap --skip-existing --limit 500   # run 2 → venues 501…1000
+...
+
+node bin/scrape.js --mode sitemap --skip-existing               # no cap → everything still missing
+```
+
+Once the whole catalog is on disk the run becomes a fast no-op (`skipped_existing` equals the sitemap size, `final: 0`). Note that `--limit` without `--skip-existing` keeps its original meaning — the head of the sitemap order, re-fetched every time — so use both flags together for top-up runs.
+
+`--sitemap-since` is a different axis: it selects venues **changed recently**, not venues **not yet downloaded**. The two compose, e.g. a weekly job that tops up by 500 and a nightly one that refreshes whatever changed in the last day.
 
 Each `venue.json` is one **Tagvenue venue record** (i.e. one `MasterVenueRecord`) with the following top-level shape (matches the shape the `shortlisty-master-venue-loader` worker expects as input — see also [platform architecture](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/platform/architecture.md) and the [Master Catalog cold-start notes](file:///d:/git_clones/homelab/IQKV/ms/shortlisty-system-design-documentation/docs/business/Personal_Venue_Catalog/cold-start.md)):
 
@@ -336,37 +353,38 @@ DEFAULTS (hardcoded in src/config.js)
 
 ### 5.1 Full parameter reference
 
-| CLI long              | Short | ENV var                | Default                        | Description                                                                                                                                             |
-| --------------------- | ----- | ---------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--mode`              | `-m`  | `TV_MODE`              | `sitemap`                      | Discovery mode: `sitemap`, `search`, `urls-file`.                                                                                                       |
-| `--city`              |       | `TV_CITY`              | `null`                         | City filter for search mode.                                                                                                                            |
-| `--country`           |       | `TV_COUNTRY`           | `null`                         | ISO country code (2-letter) used together with `--city`.                                                                                                |
-| `--people`            |       | `TV_PEOPLE`            | `null`                         | Minimum attendee count for search filters.                                                                                                              |
-| `--date`              |       | `TV_DATE`              | `null`                         | Date string `YYYY-MM-DD` for availability-filtered search.                                                                                              |
-| `--time-from`         |       | `TV_TIME_FROM`         | `null`                         | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                         |
-| `--time-to`           |       | `TV_TIME_TO`           | `null`                         | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                         |
-| `--min-price`         |       | `TV_MIN_PRICE`         | `null`                         | Minimum price filter (search mode).                                                                                                                     |
-| `--max-price`         |       | `TV_MAX_PRICE`         | `null`                         | Maximum price filter (search mode).                                                                                                                     |
-| `--limit`             | `-l`  | `TV_LIMIT`             | `100`                          | Max number of venue URLs to pass through the detail pass. `0` = no cap.                                                                                 |
-| `--page`              |       | `TV_PAGE`              | `1`                            | Starting page for `search` mode.                                                                                                                        |
-| `--urls-file`         |       | `TV_URLS_FILE`         | `null`                         | Path to a line-delimited list of full `/venues/` URLs (mode `urls-file`).                                                                               |
-| `--sitemap-since`     |       | `TV_SITEMAP_SINCE`     | `null`                         | Only include venues whose sitemap `lastmod` >= this value (ISO date or `7d`/`2w`/`1m`). Entries without `lastmod` are always included.                  |
-| `--sitemap-max-pages` |       | `TV_SITEMAP_MAX_PAGES` | `100`                          | Max number of paginated `sitemap-venues-N` pages to fetch in `sitemap` mode.                                                                            |
-| `--concurrency`       | `-c`  | `TV_CONCURRENCY`       | `5`                            | Concurrent detail-pass HTTP requests. Keep low (3–8) to avoid bans.                                                                                     |
-| `--min-delay-ms`      |       | `TV_MIN_DELAY_MS`      | `600`                          | Minimum delay between requests (ms). Random jitter of ±`--jitter-ms` is added.                                                                          |
-| `--jitter-ms`         |       | `TV_JITTER_MS`         | `400`                          | Maximum additional random delay added to `--min-delay-ms`.                                                                                              |
-| `--timeout-ms`        |       | `TV_TIMEOUT_MS`        | `15000`                        | Per-request timeout (ms).                                                                                                                               |
-| `--retries`           |       | `TV_RETRIES`           | `3`                            | Retry attempts per URL on 429/5xx/network failures.                                                                                                     |
-| `--user-agent`        |       | `TV_USER_AGENT`        | (Chrome 126 desktop UA string) | Override user agent header.                                                                                                                             |
-| `--proxy`             |       | `TV_PROXY`             | `null`                         | `http://user:pass@host:port` proxy URL for outgoing requests (both modes).                                                                              |
-| `--browser`           |       | `TV_BROWSER`           | `false`                        | Use Playwright Chromium instead of axios/cheerio for the detail pass. Needs `optionalDependencies` installed (`pnpm install` includes them by default). |
-| `--browser-stealth`   |       | `TV_BROWSER_STEALTH`   | `true`                         | Apply `playwright-stealth` plugins when in browser mode.                                                                                                |
-| `--output-dir`        | `-o`  | `TV_OUTPUT_DIR`        | `/data`                        | Directory holding the `mc-ingest` tree and the optional log file. Volume mount target.                                                                  |
-| `--config`            |       | —                      | `null`                         | Path to a JSON file whose keys are merged in at the `--config` priority tier (see §5 intro).                                                            |
-| `--log-level`         |       | `TV_LOG_LEVEL`         | `info`                         | `trace` \| `debug` \| `info` \| `warn` \| `error`.                                                                                                      |
-| `--log-file`          |       | `TV_LOG_FILE`          | `null`                         | Optional file name in `--output-dir` to also tee logs to disk alongside stdout.                                                                         |
-| `--dry-run`           |       | `TV_DRY_RUN`           | `false`                        | Run only the discovery pass and print the URL list; skip detail fetch.                                                                                  |
-| `--help`              | `-h`  | —                      | —                              | Print the CLI help.                                                                                                                                     |
+| CLI long              | Short | ENV var                | Default                        | Description                                                                                                                                               |
+| --------------------- | ----- | ---------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--mode`              | `-m`  | `TV_MODE`              | `sitemap`                      | Discovery mode: `sitemap`, `search`, `urls-file`.                                                                                                         |
+| `--city`              |       | `TV_CITY`              | `null`                         | City filter for search mode.                                                                                                                              |
+| `--country`           |       | `TV_COUNTRY`           | `null`                         | ISO country code (2-letter) used together with `--city`.                                                                                                  |
+| `--people`            |       | `TV_PEOPLE`            | `null`                         | Minimum attendee count for search filters.                                                                                                                |
+| `--date`              |       | `TV_DATE`              | `null`                         | Date string `YYYY-MM-DD` for availability-filtered search.                                                                                                |
+| `--time-from`         |       | `TV_TIME_FROM`         | `null`                         | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                           |
+| `--time-to`           |       | `TV_TIME_TO`           | `null`                         | Numeric slot key matching Tagvenue's time picker (search mode).                                                                                           |
+| `--min-price`         |       | `TV_MIN_PRICE`         | `null`                         | Minimum price filter (search mode).                                                                                                                       |
+| `--max-price`         |       | `TV_MAX_PRICE`         | `null`                         | Maximum price filter (search mode).                                                                                                                       |
+| `--limit`             | `-l`  | `TV_LIMIT`             | `100`                          | Max number of venue URLs to pass through the detail pass. `0` = no cap.                                                                                   |
+| `--page`              |       | `TV_PAGE`              | `1`                            | Starting page for `search` mode.                                                                                                                          |
+| `--urls-file`         |       | `TV_URLS_FILE`         | `null`                         | Path to a line-delimited list of full `/venues/` URLs (mode `urls-file`).                                                                                 |
+| `--sitemap-since`     |       | `TV_SITEMAP_SINCE`     | `null`                         | Only include venues whose sitemap `lastmod` >= this value (ISO date or `7d`/`2w`/`1m`). Entries without `lastmod` are always included.                    |
+| `--sitemap-max-pages` |       | `TV_SITEMAP_MAX_PAGES` | `100`                          | Max number of paginated `sitemap-venues-N` pages to fetch in `sitemap` mode.                                                                              |
+| `--concurrency`       | `-c`  | `TV_CONCURRENCY`       | `5`                            | Concurrent detail-pass HTTP requests. Keep low (3–8) to avoid bans.                                                                                       |
+| `--min-delay-ms`      |       | `TV_MIN_DELAY_MS`      | `600`                          | Minimum delay between requests (ms). Random jitter of ±`--jitter-ms` is added.                                                                            |
+| `--jitter-ms`         |       | `TV_JITTER_MS`         | `400`                          | Maximum additional random delay added to `--min-delay-ms`.                                                                                                |
+| `--timeout-ms`        |       | `TV_TIMEOUT_MS`        | `15000`                        | Per-request timeout (ms).                                                                                                                                 |
+| `--retries`           |       | `TV_RETRIES`           | `3`                            | Retry attempts per URL on 429/5xx/network failures.                                                                                                       |
+| `--user-agent`        |       | `TV_USER_AGENT`        | (Chrome 126 desktop UA string) | Override user agent header.                                                                                                                               |
+| `--proxy`             |       | `TV_PROXY`             | `null`                         | `http://user:pass@host:port` proxy URL for outgoing requests (both modes).                                                                                |
+| `--browser`           |       | `TV_BROWSER`           | `false`                        | Use Playwright Chromium instead of axios/cheerio for the detail pass. Needs `optionalDependencies` installed (`pnpm install` includes them by default).   |
+| `--browser-stealth`   |       | `TV_BROWSER_STEALTH`   | `true`                         | Apply `playwright-stealth` plugins when in browser mode.                                                                                                  |
+| `--output-dir`        | `-o`  | `TV_OUTPUT_DIR`        | `/data`                        | Directory holding the `mc-ingest` tree and the optional log file. Volume mount target.                                                                    |
+| `--config`            |       | —                      | `null`                         | Path to a JSON file whose keys are merged in at the `--config` priority tier (see §5 intro).                                                              |
+| `--log-level`         |       | `TV_LOG_LEVEL`         | `info`                         | `trace` \| `debug` \| `info` \| `warn` \| `error`.                                                                                                        |
+| `--log-file`          |       | `TV_LOG_FILE`          | `null`                         | Optional file name in `--output-dir` to also tee logs to disk alongside stdout.                                                                           |
+| `--dry-run`           |       | `TV_DRY_RUN`           | `false`                        | Run only the discovery pass and print the URL list; skip detail fetch.                                                                                    |
+| `--skip-existing`     |       | `TV_SKIP_EXISTING`     | `false`                        | Drop venues whose `venue.json` is already stored **before** `--limit` is applied, so a capped run advances into the catalog instead of re-doing the head. |
+| `--help`              | `-h`  | —                      | —                              | Print the CLI help.                                                                                                                                       |
 
 ---
 
@@ -401,6 +419,9 @@ pnpm start --mode search --city london --country GB --limit 50 --dry-run
 
 # Full sitemap run, 100 venues, SSR HTTP mode, write to ./output
 pnpm start --mode sitemap --limit 100 --output-dir ./output --log-level info
+
+# Top-up run: add the next 500 venues that are not stored yet (see §4)
+pnpm start --mode sitemap --skip-existing --limit 500 --output-dir ./output
 
 # Filtered city search for 200-person conferences, 10 results, browser mode (JS pricing)
 pnpm start \
@@ -503,7 +524,9 @@ spec:
 
 Apply: `kubectl apply -f k8s/job-london-100.yaml`.
 
-### 6.6 Kubernetes: Scheduled CronJob (daily cold-start refresh)
+### 6.6 Kubernetes: Scheduled CronJob (bounded catalog top-up)
+
+Top up 500 not-yet-stored venues per run; the first runs fill the catalog and later runs settle into a near no-op once everything is on disk (see §4).
 
 ```yaml
 # k8s/cronjob-daily-sitemap.yaml
@@ -526,7 +549,7 @@ spec:
           containers:
             - name: scraper
               image: iqkv/docintelligence-mc-ingest-tagvenue-scraper:latest
-              args: ["--mode", "sitemap", "--limit", "0", "--concurrency", "4"]
+              args: ["--mode", "sitemap", "--skip-existing", "--limit", "500", "--concurrency", "4"]
               resources:
                 requests: { cpu: "500m", memory: "256Mi" }
                 limits: { cpu: "2000m", memory: "512Mi" }

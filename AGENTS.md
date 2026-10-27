@@ -101,6 +101,7 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 - **Approval phrases**: "Yes", "Proceed", "Apply", "Do it", "Looks good"
 - **Output schema changes**: always flag to the user — downstream ingestion will break if the canonical JSON shape changes.
 - **Selector changes**: verify against at least one real page sample before committing.
+- **Discovery ordering**: in `src/discovery/sitemap.js` the skip-existing filter must stay **before** the `--limit` slice. Reversing them makes bounded runs re-select the venues they just skipped and never advance.
 
 ## Commit Standards
 

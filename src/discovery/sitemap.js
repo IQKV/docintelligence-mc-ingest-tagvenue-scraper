@@ -28,6 +28,7 @@ import {
 } from "../providers/tagvenue/selectors.js";
 import { uniqueStrings, slugify } from "../utils/normalize.js";
 import { readLinesSafe } from "../output/json-writer.js";
+import { venueRecordExists } from "../output/venue-store.js";
 
 // ─── XML helpers ─────────────────────────────────────────────────────────────
 
@@ -89,6 +90,21 @@ function newestLastmod(entries) {
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 
+/**
+ * Resolve the venue URLs to scrape, then apply the city filter, dedup, the
+ * skip-existing filter and finally the `--limit` cap.
+ *
+ * `http` and `robots` are only needed by the `sitemap` and `search` modes;
+ * `urls-file` reads a local list and never touches the network.
+ *
+ * @param {{
+ *   mode: string,
+ *   config: any,
+ *   http?: any,
+ *   robots?: any,
+ *   logger?: any,
+ * }} options
+ */
 export async function discoverUrls({ mode, http, robots, config, logger }) {
   const startTime = Date.now();
   let urls = [];
@@ -131,15 +147,32 @@ export async function discoverUrls({ mode, http, robots, config, logger }) {
     venueUrls.push(...filtered);
   }
 
-  // Dedup + limit.
+  // Dedup.
   const deduped = uniqueStrings(venueUrls);
-  const finalUrls = config.limit && config.limit > 0 ? deduped.slice(0, config.limit) : deduped;
+
+  // Skip venues already stored, so a capped run walks further into the catalog
+  // instead of re-fetching the head of the list it already has. This has to run
+  // before the limit slice: slice-then-skip would keep re-selecting the venues
+  // just skipped and never advance.
+  let candidates = deduped;
+  let skippedExisting = 0;
+  if (config.skipExisting) {
+    candidates = deduped.filter((u) => {
+      const parsed = parseVenueUrl(u);
+      return !parsed || !venueRecordExists(config.ingestDir, parsed.venue_id);
+    });
+    skippedExisting = deduped.length - candidates.length;
+  }
+
+  const finalUrls =
+    config.limit && config.limit > 0 ? candidates.slice(0, config.limit) : candidates;
 
   logger?.info?.("discovery complete", {
     mode,
     input_urls: urls.length,
     venue_urls: venueUrls.length,
     deduped: deduped.length,
+    skipped_existing: skippedExisting,
     final: finalUrls.length,
     ms: Date.now() - startTime,
   });

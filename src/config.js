@@ -40,6 +40,7 @@ const DEFAULTS = Object.freeze({
   logLevel: "info",
   logFile: null,
   dryRun: false,
+  skipExisting: false,
 });
 
 const ENV_MAP = {
@@ -70,6 +71,7 @@ const ENV_MAP = {
   TV_LOG_LEVEL: "logLevel",
   TV_LOG_FILE: "logFile",
   TV_DRY_RUN: (v) => ({ dryRun: isTrueString(v) }),
+  TV_SKIP_EXISTING: (v) => ({ skipExisting: isTrueString(v) }),
 };
 
 const CLI_ALIAS = {
@@ -109,7 +111,7 @@ export function resolveConfig({
 
   const cli = minimist(argv, {
     alias: CLI_ALIAS,
-    boolean: ["browser", "browser-stealth", "dry-run", "help"],
+    boolean: ["browser", "browser-stealth", "dry-run", "skip-existing", "help"],
   });
 
   const envOverrides = {};
@@ -156,7 +158,7 @@ export function resolveConfig({
     if (merged[key] != null && typeof merged[key] !== "number")
       merged[key] = parseIntOrNull(merged[key]);
   }
-  for (const key of ["browser", "browserStealth", "dryRun"]) {
+  for (const key of ["browser", "browserStealth", "dryRun", "skipExisting"]) {
     if (typeof merged[key] !== "boolean") merged[key] = isTrueString(merged[key]);
   }
 

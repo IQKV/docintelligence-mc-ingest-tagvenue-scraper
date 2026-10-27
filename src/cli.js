@@ -44,6 +44,7 @@ Options:
       --log-level <lvl>           trace | debug | info | warn | error (default: info)
       --log-file <name>           Also tee logs to this file inside output-dir
       --dry-run                   Run discovery only and print URLs (nothing written)
+      --skip-existing             Skip venues whose venue.json is already stored
 
 Environment variables (TV_ prefix, 1:1 with options above):
   TV_MODE TV_CITY TV_COUNTRY TV_PEOPLE TV_DATE TV_TIME_FROM TV_TIME_TO
@@ -51,7 +52,7 @@ Environment variables (TV_ prefix, 1:1 with options above):
   TV_SITEMAP_SINCE TV_SITEMAP_MAX_PAGES
   TV_CONCURRENCY TV_MIN_DELAY_MS TV_JITTER_MS TV_TIMEOUT_MS TV_RETRIES
   TV_USER_AGENT TV_PROXY TV_BROWSER TV_BROWSER_STEALTH
-  TV_OUTPUT_DIR TV_LOG_LEVEL TV_LOG_FILE TV_DRY_RUN
+  TV_OUTPUT_DIR TV_LOG_LEVEL TV_LOG_FILE TV_DRY_RUN TV_SKIP_EXISTING
 
 Examples:
   # Full sitemap scrape (all venues, no lastmod filter)
@@ -59,6 +60,9 @@ Examples:
 
   # Incremental: only venues updated in the last 7 days
   docintelligence-mc-ingest-tagvenue-scraper --mode sitemap --sitemap-since 7d -l 0
+
+  # Continue the catalog: add the next 500 venues that are not stored yet
+  docintelligence-mc-ingest-tagvenue-scraper --mode sitemap --skip-existing -l 500
 
   # Targeted city run with dry-run URL preview
   docintelligence-mc-ingest-tagvenue-scraper --mode search --city london --country GB --limit 50 --dry-run
