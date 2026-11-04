@@ -89,7 +89,10 @@ export function detectCurrency(priceString) {
 
 export function parseNumericValueFromString(s) {
   if (s == null) return null;
-  const matches = String(s).match(/(\d{1,3}(?:[,\s]\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)/g);
+  // Grouped thousands ("1,200" / "12 345") first, then a plain run of digits.
+  // The grouped form must be tried first so "1000" (no separator) is read whole
+  // rather than truncated to "100" by the leading `\d{1,3}`.
+  const matches = String(s).match(/\d{1,3}(?:[,\s]\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g);
   if (!matches) return null;
   let best = null;
   for (const m of matches) {
@@ -302,7 +305,9 @@ const AMENITIES_RULES = [
     key: "noise_restriction_after",
   },
   {
-    re: /\b(alcohol license|alcohol licence|bar extension|until\s*\d\d:\d\d.*alcohol)\b/i,
+    // The live facilities label is "Alcohol provided" — the venue serves alcohol,
+    // which implies the licence the canonical field records.
+    re: /\b(alcohol license|alcohol licence|bar extension|until\s*\d\d:\d\d.*alcohol|alcohol (?:is )?(?:provided|served|available))\b/i,
     key: "alcohol_licence",
   },
   {
@@ -322,7 +327,9 @@ const AMENITIES_RULES = [
     key: "external_catering_allowed",
   },
   {
-    re: /\b(in.?house cater|on.?site cater|own cater|catering provided|catering in.?house)\b/i,
+    // "In-house catering" is the live facilities label; the bare `cater\b` form
+    // rejected it because the trailing word boundary fails before "-ing".
+    re: /\b(in.?house cater(?:ing)?|on.?site cater(?:ing)?|own cater(?:ing)?|catering provided|catering in.?house)\b/i,
     key: "in_house_catering",
   },
   { re: /\bkosher/i, key: "kosher_available" },
@@ -373,6 +380,18 @@ const RESTRICTIONS_RULES = [
     re: /\bno minors\b|\bno children\b|\bover 18\b|\b18\+\b|\bage 18\b/i,
     v: "Age restriction 18+",
   },
+  // Tagvenue expresses a venue's restrictions as "Unavailable: <feature>" entries in
+  // the facilities block rather than as negative prose.
+  {
+    re: /unavailable:\s*external catering allowed/i,
+    v: "Outside catering is not allowed",
+  },
+  { re: /unavailable:\s*byo alcohol/i, v: "BYO alcohol not allowed" },
+  {
+    re: /unavailable:\s*promoted\s*\/\s*ticketed events/i,
+    v: "No promoted and ticketed events allowed",
+  },
+  { re: /unavailable:\s*accommodation available/i, v: "Accommodation not available" },
 ];
 
 export function classifyAmenities(list) {
@@ -545,7 +564,7 @@ function extractTimeFromText(s) {
 const CAPACITY_LABELS = [
   { re: /standing|cocktail\s*style|reception|drinks\s*reception|drinks\s*only/i, key: "standing" },
   {
-    re: /banquet|dining|sit[\s-]*down\s*dinner|seated\s*dinner|formal\s*dinner|dinner/i,
+    re: /banquet|seats?|dining|sit[\s-]*down\s*dinner|seated\s*dinner|formal\s*dinner|dinner/i,
     key: "banquet",
   },
   { re: /theatre|theater|auditorium|presentation|lecture/i, key: "theater" },
@@ -560,11 +579,14 @@ export function parseCapacityConfigs({
   maximumAttendeeCapacity,
   additionalProps = {},
   specRows = [],
+  featureLines = [],
 }) {
-  const rows = Object.entries(additionalProps).map(([key, value]) => ({
-    key: String(key),
-    value: String(value),
-  }));
+  // Feature labels ("Up to 300 standing") come first so structured JSON-LD
+  // capacity in additionalProps/specRows still wins when both are present.
+  const rows = featureLines.map((line) => ({ key: String(line), value: String(line) }));
+  for (const [key, value] of Object.entries(additionalProps)) {
+    rows.push({ key: String(key), value: String(value) });
+  }
   for (const r of specRows) rows.push({ key: r.key, value: r.value });
   const configurations = {};
   let minTotal = null;

@@ -42,6 +42,33 @@ test("extractor reads the DOM fallbacks", () => {
   assert.equal(raw.dom.host_name, "Dovile S.");
 });
 
+test("extractor reads the live facilities block", () => {
+  const raw = extract();
+  // Labels split across child elements ("<div>British</div>cuisine") must not glue
+  // together, and capacity labels must keep their number and unit.
+  assert.ok(raw.dom.features_list.includes("Up to 300 standing"));
+  assert.ok(raw.dom.features_list.includes("Up to 135 seats"));
+  assert.ok(raw.dom.features_list.includes("In-house catering"));
+  assert.ok(raw.dom.features_list.includes("British cuisine"));
+  assert.ok(raw.dom.features_list.includes("Parking available"));
+  assert.ok(raw.dom.features_list.includes("Alcohol provided"));
+  // Unavailable features are read from their full label, not the struck-through copy.
+  assert.deepEqual(raw.dom.restrictions_list, [
+    "Unavailable: External catering allowed",
+    "Unavailable: Accommodation available",
+    "Unavailable: Promoted / ticketed events",
+    "Unavailable: BYO alcohol",
+  ]);
+  assert.equal(raw._scrape.venue_features_count, 6);
+});
+
+test("extractor reads the live pricing table", () => {
+  const raw = extract();
+  assert.equal(raw._scrape.pricing_rows_count, 3);
+  assert.equal(raw.dom.price_hint_text, "from £1 per person");
+  assert.equal(raw.dom.price_minimum_spend_text, "from £1000 min. spend");
+});
+
 test("extractor collects gallery image variants", () => {
   const raw = extract();
   assert.equal(raw.dom.gallery_images.length, 4);

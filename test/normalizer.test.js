@@ -54,12 +54,30 @@ test("normalizer maps capacity, pricing and venue type into metadata", () => {
   });
   assert.equal(meta.pricing.currency, "GBP");
   assert.equal(meta.pricing.price_method, "per_person_per_session");
+  assert.equal(meta.pricing.minimum_spend, 1000);
   assert.match(meta.pricing.price_range_hint, /£10/);
   assert.ok(meta.venue_type.includes("restaurant_private_event_space"));
   assert.equal(meta.av_tech.wifi, true);
   assert.equal(meta.av_tech.projector, true);
   assert.equal(meta.logistics.air_conditioning, true);
   assert.equal(meta.logistics.natural_light, true);
+  assert.equal(meta.catering.policy, "in_house_exclusive");
+  assert.deepEqual(meta.catering.cuisines_available, ["british"]);
+  assert.equal(meta.logistics.parking_available, true);
+  assert.equal(meta.logistics.alcohol_licence, true);
+});
+
+test("normalizer turns unavailable features into canonical restrictions", () => {
+  const meta = normalize().metadata;
+  // "Unavailable: X" lines are translated, never also appended verbatim.
+  assert.deepEqual(meta.restrictions, [
+    "Outside catering is not allowed",
+    "Accommodation not available",
+    "No promoted and ticketed events allowed",
+    "BYO alcohol not allowed",
+  ]);
+  // Capacity labels ("Up to 300 standing") belong to `capacity`, not `amenities`.
+  assert.ok(!meta.amenities.some((a) => /^up to\b/i.test(a)));
 });
 
 test("normalizer lists one asset per photo, keyed by a predictable file name", () => {
@@ -98,5 +116,5 @@ test("normalizer maps reviews and provenance", () => {
   assert.equal(entry.scrape_run.fetcher, "http");
   assert.equal(entry.scrape_run.coverage.has_json_ld, true);
   assert.equal(entry.scrape_run.coverage.gallery_count, 2);
-  assert.equal(entry.confidence, 0.85);
+  assert.equal(entry.confidence, 0.9);
 });

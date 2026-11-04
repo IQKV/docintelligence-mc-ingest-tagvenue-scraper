@@ -29,6 +29,7 @@ test("detectCurrency resolves symbols and ISO codes", () => {
 test("parseNumericValueFromString keeps the largest number", () => {
   assert.equal(parseNumericValueFromString("from £10 per person"), 10);
   assert.equal(parseNumericValueFromString("£1,200 minimum"), 1200);
+  assert.equal(parseNumericValueFromString("£1000 min. spend"), 1000);
   assert.equal(parseNumericValueFromString("no digits"), null);
 });
 

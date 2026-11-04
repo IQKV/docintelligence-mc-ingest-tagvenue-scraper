@@ -82,6 +82,7 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
     maximumAttendeeCapacity: parseIntOrNull(ld?.maximumAttendeeCapacity),
     additionalProps: ld?.additionalProperty || {},
     specRows,
+    featureLines: dom.features_list || [],
   });
   // capacity.min_attendees_per_event also additionalProperty if present
   const minAttendeesFromAdd =
@@ -110,9 +111,12 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
       .map((r) => `${r.key}: ${r.value}`),
   ];
   const restrictions = classifyRestrictions(restrictionLines);
-  // Append generic restrictions not caught by regex but present in raw text
+  // Append generic restrictions not caught by regex but present in raw text.
+  // Lines a rule already translated (e.g. "Unavailable: BYO alcohol") must not
+  // also be appended verbatim, or the canonical + raw wording both show up.
   for (const line of dom.restrictions_list || []) {
     if (restrictions.length >= 20) break;
+    if (classifyRestrictions([line]).length) continue;
     const trimmed = truncate(line, 200);
     if (trimmed && !restrictions.includes(trimmed)) restrictions.push(trimmed);
   }
@@ -259,7 +263,9 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
       noise_restriction_after: buckets.logistics.noise_restriction_after || null,
       alcohol_licence: !!buckets.logistics.alcohol_licence || null,
     },
-    amenities: buckets.raw.slice(0, 200),
+    // Capacity labels ("Up to 300 standing") live in `capacity`, so keep them
+    // out of the amenities list to avoid the same fact appearing twice.
+    amenities: buckets.raw.filter((line) => !/^\s*up to\b/i.test(line)).slice(0, 200),
     restrictions: restrictions.slice(0, 50),
     pricing: {
       currency,

@@ -81,6 +81,8 @@ export const DOM_SELECTORS = {
     '[class*="information"] table',
     "table",
   ],
+  // Legacy/synthetic markup only — the live facilities block is read by
+  // cheerioVenueFeatures() below.
   features_unstructured: [
     '[class*="feature"] li',
     '[class*="amenity"] li',
@@ -262,6 +264,59 @@ export function cheerioTableRows($, tableSelectors) {
       });
     } catch {}
   }
+  return rows;
+}
+
+// Live venue page (observed 2026-11): venue-level specs live in two blocks —
+//   #p-venuepage-features .c-venue-feature       facilities/catering, one .c-venue-feature__label each
+//   #p-venuepage-pricing  .c-pricing-table__row  per-day / per-room prices
+// Unavailable features carry .c-venue-feature--unavailable and repeat their label
+// inside .unavailable-feature-full-label.
+export const VENUE_FEATURES_SELECTOR = "#p-venuepage-features .c-venue-feature";
+export const PRICING_ROWS_SELECTOR = "#p-venuepage-pricing .c-pricing-table .c-pricing-table__row";
+
+// Label text with a space at every child-element boundary: the live markup splits
+// labels across blocks ("<div>British</div>cuisine") and plain .text() glues the
+// words together ("Britishcuisine").
+function labelText($, el) {
+  if (!el) return "";
+  const node = $(el).clone();
+  node.find("div, p, li, br, strong, del, span").after(" ");
+  return node.text().replace(/\s+/g, " ").trim();
+}
+
+/** Facilities block split into available and unavailable feature labels. */
+export function cheerioVenueFeatures($) {
+  const available = [];
+  const unavailable = [];
+  $(VENUE_FEATURES_SELECTOR).each((_i, el) => {
+    const $el = $(el);
+    if ($el.hasClass("c-venue-feature--unavailable")) {
+      const text = labelText($, $el.find(".unavailable-feature-full-label").get(0));
+      if (text) unavailable.push(text);
+      return;
+    }
+    const text = labelText($, $el.find(".c-venue-feature__label").get(0));
+    if (text) available.push(text);
+  });
+  return { available, unavailable };
+}
+
+/** Pricing rows that carry a price: [{ header, name, price, method }]. */
+export function cheerioPricingRows($) {
+  const rows = [];
+  $(PRICING_ROWS_SELECTOR).each((_i, el) => {
+    const $el = $(el);
+    const text = (sel) => $el.find(sel).first().text().replace(/\s+/g, " ").trim();
+    const price = text(".c-pricing-table__price_value");
+    if (!price) return;
+    rows.push({
+      header: $el.hasClass("c-pricing-table__row--header"),
+      name: text(".c-pricing-table__item--day"),
+      price,
+      method: text(".c-pricing-table__price_method_inner"),
+    });
+  });
   return rows;
 }
 

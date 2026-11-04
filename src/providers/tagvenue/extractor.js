@@ -4,6 +4,8 @@ import {
   cheerioAttrOrText,
   cheerioAllText,
   cheerioTableRows,
+  cheerioVenueFeatures,
+  cheerioPricingRows,
   ldBlocksFromHtml,
   findFirstLdByType,
   findAllLdByType,
@@ -11,6 +13,7 @@ import {
   parseVenueUrl,
   extractImageSrcset,
 } from "./selectors.js";
+import { uniqueStrings, parseNumericValueFromString } from "../../utils/normalize.js";
 
 const NOOP = () => {};
 
@@ -56,13 +59,23 @@ export function extractTagvenueRecord({
   const hostResponseMinutes = cheerioAttrOrText($, DOM_SELECTORS.host_response_minutes);
   const hostResponseRate = cheerioAttrOrText($, DOM_SELECTORS.host_response_rate);
   const specTableRows = cheerioTableRows($, DOM_SELECTORS.tables_all);
-  const featuresList = cheerioAllText($, DOM_SELECTORS.features_unstructured, { limit: 500 });
-  const restrictionsList = cheerioAllText($, DOM_SELECTORS.restrictions_unstructured, {
-    limit: 200,
-  });
+  const venueFeatures = cheerioVenueFeatures($);
+  const pricingRows = cheerioPricingRows($);
+  const featuresList = uniqueStrings([
+    ...venueFeatures.available,
+    ...cheerioAllText($, DOM_SELECTORS.features_unstructured, { limit: 500 }),
+  ]);
+  const restrictionsList = uniqueStrings([
+    ...venueFeatures.unavailable,
+    ...cheerioAllText($, DOM_SELECTORS.restrictions_unstructured, { limit: 200 }),
+  ]);
   const galleryImgs = extractImageSrcset($, DOM_SELECTORS.gallery_imgs);
-  const priceHintText = cheerioAttrOrText($, DOM_SELECTORS.price_hint_text);
-  const priceMinimumSpend = cheerioAttrOrText($, DOM_SELECTORS.price_minimum_spend);
+  // Prefer the live pricing table, falling back to the legacy price-hint selectors.
+  const priceHintText =
+    formatPriceRow(minByPrice(pricingRows)) || cheerioAttrOrText($, DOM_SELECTORS.price_hint_text);
+  const priceMinimumSpend =
+    formatPriceRow(minByPrice(pricingRows.filter(isMinimumSpendRow))) ||
+    cheerioAttrOrText($, DOM_SELECTORS.price_minimum_spend);
   const reviewsAggregateValue = cheerioAttrOrText($, DOM_SELECTORS.reviews_rating_value);
   const reviewsAggregateCount = cheerioAttrOrText($, DOM_SELECTORS.reviews_count);
 
@@ -145,6 +158,8 @@ export function extractTagvenueRecord({
       json_ld_blocks: ldBlocks.length,
       features_list_count: featuresList.length,
       restrictions_list_count: restrictionsList.length,
+      venue_features_count: venueFeatures.available.length,
+      pricing_rows_count: pricingRows.length,
       spec_table_rows_count: specTableRows.length,
       gallery_img_count: galleryImgs.length,
       reviews_count_dom: reviewsDom.length,
@@ -247,4 +262,30 @@ function parseIntOrNull(v) {
   if (v == null) return null;
   const n = parseInt(String(v).replace(/[^\d-]/g, ""), 10);
   return Number.isFinite(n) ? n : null;
+}
+
+/** Cheapest pricing row by numeric amount, or null when no row carries a price. */
+function minByPrice(rows) {
+  let best = null;
+  let bestPrice = Infinity;
+  for (const row of rows) {
+    const price = parseNumericValueFromString(row.price);
+    if (price == null || price >= bestPrice) continue;
+    best = row;
+    bestPrice = price;
+  }
+  return best;
+}
+
+// Tagvenue renders a "£1 min. spend" row for spaces that have no real minimum, so
+// those rows must not win the venue's minimum-spend figure.
+function isMinimumSpendRow(row) {
+  if (!/min\.?\s*spend/i.test(row.method)) return false;
+  const price = parseNumericValueFromString(row.price);
+  return price != null && price > 1;
+}
+
+/** "from £1000 min. spend" / "from £1 per person" — the form the canonical normalizer reads. */
+function formatPriceRow(row) {
+  return row ? `from ${row.price} ${row.method}`.trim() : null;
 }
