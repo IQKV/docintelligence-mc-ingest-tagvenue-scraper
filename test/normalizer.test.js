@@ -17,6 +17,14 @@ function normalize() {
   return normalizeTagvenueToCanonical(extractTagvenueRecord({ url: VENUE_URL, html: HTML }), NOW);
 }
 
+function fieldValue(meta, group, field) {
+  return meta.items.find((row) => row.group === group && row.field === field)?.value;
+}
+
+function fieldValues(meta, group, field) {
+  return meta.items.filter((row) => row.group === group && row.field === field).map((r) => r.value);
+}
+
 test("normalizer emits the canonical identity envelope", () => {
   const entry = normalize();
   assert.equal(entry._schema_version, CANONICAL_SCHEMA_VERSION);
@@ -42,42 +50,54 @@ test("normalizer maps name, aliases and address", () => {
   assert.deepEqual(entry.location, { lat: 51.499067, lng: -0.0808991 });
 });
 
-test("normalizer maps capacity, pricing and venue type into metadata", () => {
-  const entry = normalize();
-  const meta = entry.metadata;
+test("normalizer emits flat {group, field, value} metadata rows", () => {
+  const meta = normalize().metadata;
   assert.equal(meta._schema_version, CANONICAL_SCHEMA_VERSION);
-  assert.equal(meta.capacity.max_total, 90);
-  assert.deepEqual(meta.capacity.configurations, {
-    standing: 90,
-    banquet: 60,
-    theater: 40,
-  });
-  assert.equal(meta.pricing.currency, "GBP");
-  assert.equal(meta.pricing.price_method, "per_person_per_session");
-  assert.equal(meta.pricing.minimum_spend, 1000);
-  assert.match(meta.pricing.price_range_hint, /£10/);
-  assert.ok(meta.venue_type.includes("restaurant_private_event_space"));
-  assert.equal(meta.av_tech.wifi, true);
-  assert.equal(meta.av_tech.projector, true);
-  assert.equal(meta.logistics.air_conditioning, true);
-  assert.equal(meta.logistics.natural_light, true);
-  assert.equal(meta.catering.policy, "in_house_exclusive");
-  assert.deepEqual(meta.catering.cuisines_available, ["british"]);
-  assert.equal(meta.logistics.parking_available, true);
-  assert.equal(meta.logistics.alcohol_licence, true);
+  // Absent and false leaves emit no row, so every row carries a real value.
+  assert.ok(
+    meta.items.every((row) => typeof row.group === "string" && row.field && row.value != null),
+  );
+  // Nested keys flatten to a dot path; list sections repeat one row per element.
+  assert.ok(
+    meta.items.some((row) => row.group === "capacity" && row.field === "configurations.banquet"),
+  );
+  assert.ok(meta.items.filter((row) => row.group === "amenities").length > 1);
+});
+
+test("normalizer maps capacity, pricing and venue type into metadata rows", () => {
+  const meta = normalize().metadata;
+  assert.equal(fieldValue(meta, "capacity", "max_total"), 90);
+  assert.equal(fieldValue(meta, "capacity", "configurations.standing"), 90);
+  assert.equal(fieldValue(meta, "capacity", "configurations.banquet"), 60);
+  assert.equal(fieldValue(meta, "capacity", "configurations.theater"), 40);
+  assert.equal(fieldValue(meta, "pricing", "currency"), "GBP");
+  assert.equal(fieldValue(meta, "pricing", "price_method"), "per_person_per_session");
+  assert.equal(fieldValue(meta, "pricing", "minimum_spend"), 1000);
+  assert.match(fieldValue(meta, "pricing", "price_range_hint"), /£10/);
+  assert.ok(
+    fieldValues(meta, "venue_type", "venue_type").includes("restaurant_private_event_space"),
+  );
+  assert.equal(fieldValue(meta, "av_tech", "wifi"), true);
+  assert.equal(fieldValue(meta, "av_tech", "projector"), true);
+  assert.equal(fieldValue(meta, "logistics", "air_conditioning"), true);
+  assert.equal(fieldValue(meta, "logistics", "natural_light"), true);
+  assert.equal(fieldValue(meta, "catering", "policy"), "in_house_exclusive");
+  assert.deepEqual(fieldValues(meta, "catering", "cuisines_available"), ["british"]);
+  assert.equal(fieldValue(meta, "logistics", "parking_available"), true);
+  assert.equal(fieldValue(meta, "logistics", "alcohol_licence"), true);
 });
 
 test("normalizer turns unavailable features into canonical restrictions", () => {
   const meta = normalize().metadata;
   // "Unavailable: X" lines are translated, never also appended verbatim.
-  assert.deepEqual(meta.restrictions, [
+  assert.deepEqual(fieldValues(meta, "restrictions", "restrictions"), [
     "Outside catering is not allowed",
     "Accommodation not available",
     "No promoted and ticketed events allowed",
     "BYO alcohol not allowed",
   ]);
   // Capacity labels ("Up to 300 standing") belong to `capacity`, not `amenities`.
-  assert.ok(!meta.amenities.some((a) => /^up to\b/i.test(a)));
+  assert.ok(!fieldValues(meta, "amenities", "amenities").some((a) => /^up to\b/i.test(a)));
 });
 
 test("normalizer lists one asset per photo, keyed by a predictable file name", () => {
@@ -101,7 +121,9 @@ test("normalizer maps rating, station and contacts", () => {
   assert.equal(entry.rating.review_count, 588);
   assert.equal(entry.rating.source, "tagvenue");
   assert.deepEqual(entry.nearest_station, { name: "London Bridge Station", distance_miles: 0.5 });
-  assert.deepEqual(entry.metadata.contacts, [{ name: "Dovile S.", role: "Venue Manager" }]);
+  assert.deepEqual(fieldValues(entry.metadata, "contacts", "contacts"), [
+    { name: "Dovile S.", role: "Venue Manager" },
+  ]);
   assert.equal(entry.company.manager_name, "Dovile S.");
 });
 

@@ -23,6 +23,42 @@ import { pickPhotoVariants } from "./selectors.js";
 // Schema version matches Shortlisty canonical metadata schema.
 const SCHEMA_VERSION = 1;
 
+// Canonical metadata is a flat row list so downstream code can render or filter any
+// section without knowing its shape: {group, field, value}. A section's nested keys
+// become dot-paths (capacity -> "configurations.banquet"); a list section repeats one
+// row per element. Absent (null) leaves emit no row. `value` keeps its native JSON
+// type; the field's type and vocabulary live in the shared UI spec, not in the data.
+function toMetadataItems(sections) {
+  const items = [];
+  for (const [group, section] of Object.entries(sections)) {
+    if (section == null) continue;
+    if (Array.isArray(section)) {
+      for (const value of section) if (value != null) items.push({ group, field: group, value });
+    } else if (typeof section === "object") {
+      for (const [field, value] of leafRows(section)) items.push({ group, field, value });
+    } else {
+      items.push({ group, field: group, value: section });
+    }
+  }
+  return items;
+}
+
+function leafRows(object, prefix = "") {
+  const rows = [];
+  for (const [key, value] of Object.entries(object)) {
+    const field = prefix ? `${prefix}.${key}` : key;
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      for (const element of value) if (element != null) rows.push([field, element]);
+    } else if (typeof value === "object") {
+      rows.push(...leafRows(value, field));
+    } else {
+      rows.push([field, value]);
+    }
+  }
+  return rows;
+}
+
 export function normalizeTagvenueToCanonical(raw, now = new Date()) {
   // raw = extractTagvenueRecord output
   const ld = raw.ld || null;
@@ -211,8 +247,7 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
       }
     : null;
 
-  const metadata = {
-    _schema_version: SCHEMA_VERSION,
+  const metadataFields = {
     capacity,
     venue_type: venueTypes,
     catering: {
@@ -284,6 +319,11 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
         null,
     },
     contacts,
+  };
+
+  const metadata = {
+    _schema_version: SCHEMA_VERSION,
+    items: toMetadataItems(metadataFields),
   };
 
   const entry = {

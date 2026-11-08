@@ -53,102 +53,86 @@
   "source_url": "https://www.tagvenue.com/venues/london/11896/the-last-talisman",
   "metadata": {
     "_schema_version": 1,
-    "capacity": {
-      "max_total": 90,
-      "configurations": {
-        "standing": 90,
-        "banquet": 60,
-        "theater": null,
-        "classroom": null,
-        "cocktail": null,
-        "conference": null,
-        "boardroom": 18
+    "items": [
+      { "group": "capacity", "field": "max_total", "value": 90 },
+      { "group": "capacity", "field": "configurations.standing", "value": 90 },
+      { "group": "capacity", "field": "configurations.banquet", "value": 60 },
+      { "group": "capacity", "field": "configurations.boardroom", "value": 18 },
+      { "group": "capacity", "field": "min_attendees_per_event", "value": 30 },
+      { "group": "venue_type", "field": "venue_type", "value": "restaurant_private_event_space" },
+      { "group": "catering", "field": "policy", "value": "in_house_exclusive" },
+      { "group": "catering", "field": "vegan_available", "value": true },
+      { "group": "catering", "field": "vegetarian_available", "value": true },
+      { "group": "catering", "field": "gluten_free_available", "value": true },
+      { "group": "catering", "field": "alcohol_licence_until", "value": "01:30" },
+      { "group": "catering", "field": "cuisines_available", "value": "asian" },
+      { "group": "av_tech", "field": "built_in_av", "value": true },
+      { "group": "av_tech", "field": "wifi", "value": true },
+      { "group": "av_tech", "field": "projector", "value": true },
+      { "group": "av_tech", "field": "screens", "value": 3 },
+      { "group": "av_tech", "field": "speakers", "value": true },
+      { "group": "av_tech", "field": "pa_system", "value": true },
+      { "group": "av_tech", "field": "flatscreen_tv", "value": true },
+      { "group": "av_tech", "field": "whiteboard", "value": true },
+      { "group": "av_tech", "field": "flipchart", "value": true },
+      { "group": "logistics", "field": "air_conditioning", "value": true },
+      { "group": "logistics", "field": "natural_light", "value": true },
+      { "group": "logistics", "field": "private_bar", "value": true },
+      { "group": "logistics", "field": "private_entrance", "value": true },
+      { "group": "logistics", "field": "private_toilets", "value": true },
+      { "group": "logistics", "field": "parking_available", "value": true },
+      { "group": "logistics", "field": "paid_parking_nearby", "value": true },
+      { "group": "logistics", "field": "noise_restriction_after", "value": "23:00" },
+      { "group": "logistics", "field": "alcohol_licence", "value": true },
+      { "group": "amenities", "field": "amenities", "value": "Wi-Fi" },
+      { "group": "amenities", "field": "amenities", "value": "Projector" },
+      { "group": "amenities", "field": "amenities", "value": "Flatscreen TV" },
+      { "group": "amenities", "field": "amenities", "value": "Whiteboard" },
+      { "group": "amenities", "field": "amenities", "value": "Flipchart" },
+      { "group": "amenities", "field": "amenities", "value": "PA system / speakers" },
+      { "group": "amenities", "field": "amenities", "value": "Air conditioner" },
+      { "group": "amenities", "field": "amenities", "value": "Natural light" },
+      {
+        "group": "amenities",
+        "field": "amenities",
+        "value": "Paid parking facilities available nearby"
       },
-      "min_attendees_per_event": 30
-    },
-    "venue_type": ["restaurant_private_event_space"],
-    "catering": {
-      "policy": "in_house_exclusive",
-      "kosher_available": false,
-      "halal_available": false,
-      "vegan_available": true,
-      "vegetarian_available": true,
-      "gluten_free_available": true,
-      "alcohol_licence_until": "01:30",
-      "byo_alcohol_allowed": false,
-      "external_catering_allowed": false,
-      "cuisines_available": ["asian"]
-    },
-    "av_tech": {
-      "built_in_av": true,
-      "wifi": true,
-      "projector": true,
-      "screens": 3,
-      "speakers": true,
-      "pa_system": true,
-      "flatscreen_tv": true,
-      "whiteboard": true,
-      "flipchart": true,
-      "conference_call": false
-    },
-    "accessibility": {
-      "ada_compliant": false,
-      "elevator_access": false,
-      "accessible_restrooms": false,
-      "wheelchair_stage_access": false,
-      "wheelchair_accessible": false,
-      "ground_level": false,
-      "disabled_parking": false,
-      "cargo_lift": false
-    },
-    "logistics": {
-      "air_conditioning": true,
-      "natural_light": true,
-      "private_bar": true,
-      "private_entrance": true,
-      "private_toilets": true,
-      "parking_available": true,
-      "paid_parking_nearby": true,
-      "storage_space": false,
-      "quiet_space": false,
-      "noise_restriction_after": "23:00",
-      "alcohol_licence": true
-    },
-    "amenities": [
-      "Wi-Fi",
-      "Projector",
-      "Flatscreen TV",
-      "Whiteboard",
-      "Flipchart",
-      "PA system / speakers",
-      "Air conditioner",
-      "Natural light",
-      "Paid parking facilities available nearby",
-      "Private Bar",
-      "Private Entrance",
-      "Private Toilets"
-    ],
-    "restrictions": [
-      "No smoking in the building",
-      "Outside catering is not allowed",
-      "BYO alcohol not allowed",
-      "No promoted and ticketed events allowed",
-      "Bring your own DJ not allowed",
-      "No wedding licence"
-    ],
-    "pricing": {
-      "currency": "GBP",
-      "minimum_spend": null,
-      "rental_fee_indicative": null,
-      "price_range_hint": "from £10 per person / per session",
-      "price_method": "per_person_per_session"
-    },
-    "music_and_sound": {
-      "play_own_music_allowed": true,
-      "byo_dj_allowed": false,
-      "noise_restriction_after": "23:00"
-    },
-    "contacts": [{ "name": "Dovile S.", "role": "Venue Manager" }]
+      { "group": "amenities", "field": "amenities", "value": "Private Bar" },
+      { "group": "amenities", "field": "amenities", "value": "Private Entrance" },
+      { "group": "amenities", "field": "amenities", "value": "Private Toilets" },
+      { "group": "restrictions", "field": "restrictions", "value": "No smoking in the building" },
+      {
+        "group": "restrictions",
+        "field": "restrictions",
+        "value": "Outside catering is not allowed"
+      },
+      { "group": "restrictions", "field": "restrictions", "value": "BYO alcohol not allowed" },
+      {
+        "group": "restrictions",
+        "field": "restrictions",
+        "value": "No promoted and ticketed events allowed"
+      },
+      {
+        "group": "restrictions",
+        "field": "restrictions",
+        "value": "Bring your own DJ not allowed"
+      },
+      { "group": "restrictions", "field": "restrictions", "value": "No wedding licence" },
+      { "group": "pricing", "field": "currency", "value": "GBP" },
+      {
+        "group": "pricing",
+        "field": "price_range_hint",
+        "value": "from £10 per person / per session"
+      },
+      { "group": "pricing", "field": "price_method", "value": "per_person_per_session" },
+      { "group": "music_and_sound", "field": "play_own_music_allowed", "value": true },
+      { "group": "music_and_sound", "field": "noise_restriction_after", "value": "23:00" },
+      {
+        "group": "contacts",
+        "field": "contacts",
+        "value": { "name": "Dovile S.", "role": "Venue Manager" }
+      }
+    ]
   },
   "reviews": [
     {
