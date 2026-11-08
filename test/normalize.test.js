@@ -108,6 +108,6 @@ test("parseCapacityConfigs maps labelled rows to configuration keys", () => {
 test("parseCuisines and inferVenueTypes read free text", () => {
   assert.deepEqual(parseCuisines(["Asian cuisine", "Vegan options"]).sort(), ["asian", "vegan"]);
   assert.deepEqual(inferVenueTypes({ ldTypes: ["EventVenue"], ldName: "Boutique Hotel Blue" }), [
-    "hotel",
+    "Hotel",
   ]);
 });

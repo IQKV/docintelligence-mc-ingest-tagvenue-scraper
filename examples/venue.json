@@ -59,8 +59,8 @@
       { "group": "capacity", "field": "configurations.banquet", "value": 60 },
       { "group": "capacity", "field": "configurations.boardroom", "value": 18 },
       { "group": "capacity", "field": "min_attendees_per_event", "value": 30 },
-      { "group": "venue_type", "field": "venue_type", "value": "restaurant_private_event_space" },
-      { "group": "catering", "field": "policy", "value": "in_house_exclusive" },
+      { "group": "venue_type", "field": "venue_type", "value": "Restaurant" },
+      { "group": "catering", "field": "policy", "value": "In-house catering only" },
       { "group": "catering", "field": "vegan_available", "value": true },
       { "group": "catering", "field": "vegetarian_available", "value": true },
       { "group": "catering", "field": "gluten_free_available", "value": true },
@@ -124,7 +124,7 @@
         "field": "price_range_hint",
         "value": "from £10 per person / per session"
       },
-      { "group": "pricing", "field": "price_method", "value": "per_person_per_session" },
+      { "group": "pricing", "field": "price_method", "value": "Per person" },
       { "group": "music_and_sound", "field": "play_own_music_allowed", "value": true },
       { "group": "music_and_sound", "field": "noise_restriction_after", "value": "23:00" },
       {

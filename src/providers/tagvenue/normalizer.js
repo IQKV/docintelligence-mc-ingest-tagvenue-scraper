@@ -104,11 +104,17 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
   const priceNumber = parseNumericValueFromString(priceRange);
   const priceHint = priceRange ? truncate(priceRange, 200) : null;
 
+  // Stored as plain-English wording (not internal slugs) for semantic search.
   let priceMethod = null;
+  let minimumSpendBased = false;
   const pr = priceRange.toLowerCase();
-  if (/\bper\s*(person|head|pax|guest|delegate)\b/.test(pr)) priceMethod = "per_person_per_session";
-  else if (/\bper\s*(day|hour|session|evening|hire)\b/.test(pr)) priceMethod = "per_session_hire";
-  else if (/minimum\s*spend|min\.\s*spend/.test(pr)) priceMethod = "minimum_spend";
+  if (/\bper\s*(person|head|pax|guest|delegate)\b/.test(pr)) priceMethod = "Per person";
+  else if (/\bper\s*(day|hour|session|evening|hire)\b/.test(pr))
+    priceMethod = "Per session or hire";
+  else if (/minimum\s*spend|min\.\s*spend/.test(pr)) {
+    priceMethod = "Minimum spend";
+    minimumSpendBased = true;
+  }
 
   const minSpendNumber = parseNumericValueFromString(dom.price_minimum_spend_text || "");
 
@@ -174,18 +180,16 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
     features: dom.features_list || [],
     breadcrumbNames,
   });
-  if (venueTypes.length === 0) venueTypes.push("unclassified");
+  if (venueTypes.length === 0) venueTypes.push("Unclassified");
 
   // Catering
   const inHouse = buckets.catering.in_house_available;
   const ext = buckets.catering.external_catering_allowed;
-  let cateringPolicy = "unspecified";
-  if (inHouse && !ext) cateringPolicy = "in_house_exclusive";
-  else if (ext && !inHouse) cateringPolicy = "external_only";
-  else if (inHouse && ext) cateringPolicy = "in_house_plus_external";
-  else if (!inHouse && !ext && priceMethod === "minimum_spend")
-    cateringPolicy = "in_house_exclusive";
-  else cateringPolicy = "external_not_allowed_or_unknown";
+  let cateringPolicy = "Catering not specified";
+  if (inHouse && !ext) cateringPolicy = "In-house catering only";
+  else if (ext && !inHouse) cateringPolicy = "External catering only";
+  else if (inHouse && ext) cateringPolicy = "In-house and external catering both allowed";
+  else if (!inHouse && !ext && minimumSpendBased) cateringPolicy = "In-house catering only";
 
   // Licence until: catering.alcohol_licence_until
   const alcoholLicenceUntil =
@@ -306,7 +310,7 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
       currency,
       minimum_spend: minSpendNumber ?? priceNumber,
       rental_fee_indicative:
-        priceMethod === "per_session_hire" ? (priceNumber ?? minSpendNumber) : null,
+        priceMethod === "Per session or hire" ? (priceNumber ?? minSpendNumber) : null,
       price_range_hint: priceHint,
       price_method: priceMethod,
     },

@@ -209,32 +209,37 @@ export function parsePercent(s) {
 }
 
 // --- Category / venue_type inference ---
+// Stored values are plain-English wording (not internal slugs) so the text
+// embeds and matches well in semantic search.
 const VENUE_TYPE_KEYWORDS = [
-  // (keywords-in-description-or-type, canonical venue_type)
+  // (keywords-in-description-or-type, human-readable venue_type)
   {
     k: ["restaurant", "dining", "brasserie", "bistro", "gastropub", "cafe", "coffee"],
-    v: "restaurant_private_event_space",
+    v: "Restaurant",
   },
-  { k: ["hotel", "boutique hotel"], v: "hotel" },
-  { k: ["bar", "pub", "cocktail bar", "rooftop bar", "lounge bar"], v: "bar_lounge" },
-  { k: ["rooftop"], v: "rooftop" },
-  { k: ["gallery", "art gallery"], v: "gallery" },
-  { k: ["warehouse", "industrial"], v: "warehouse_industrial" },
-  { k: ["studio"], v: "studio" },
-  { k: ["garden", "courtyard", "terrace", "outdoor"], v: "outdoor_garden_terrace" },
-  { k: ["town hall", "townhall", "guildhall", "assembly hall"], v: "town_hall_community_centre" },
-  { k: ["conference centre", "conference center", "conference suite"], v: "conference_centre" },
-  { k: ["stadium", "arena", "sports hall"], v: "stadium_arena" },
-  { k: ["museum"], v: "museum" },
-  { k: ["theatre", "theater", "cinema"], v: "theatre_cinema" },
-  { k: ["yacht", "boat", "ship", "barge", "river cruise"], v: "boat_yacht" },
-  { k: ["marquee", "tipi", "tent", "barn"], v: "marquee_tipi_barn" },
-  { k: ["park", "zoo", "botanical"], v: "park_zoo_gardens" },
-  { k: ["chapel", "church"], v: "place_of_worship" },
-  { k: ["private member", "members club"], v: "private_members_club" },
-  { k: ["nightclub", "club venue", "club"], v: "nightclub" },
-  { k: ["house", "mansion", "estate", "hall"], v: "historic_house_estate" },
-  { k: ["beach", "coastal"], v: "beach_coastal" },
+  { k: ["hotel", "boutique hotel"], v: "Hotel" },
+  { k: ["bar", "pub", "cocktail bar", "rooftop bar", "lounge bar"], v: "Bar or lounge" },
+  { k: ["rooftop"], v: "Rooftop" },
+  { k: ["gallery", "art gallery"], v: "Gallery" },
+  { k: ["warehouse", "industrial"], v: "Warehouse or industrial space" },
+  { k: ["studio"], v: "Studio" },
+  { k: ["garden", "courtyard", "terrace", "outdoor"], v: "Outdoor garden or terrace" },
+  {
+    k: ["town hall", "townhall", "guildhall", "assembly hall"],
+    v: "Town hall or community centre",
+  },
+  { k: ["conference centre", "conference center", "conference suite"], v: "Conference centre" },
+  { k: ["stadium", "arena", "sports hall"], v: "Stadium or arena" },
+  { k: ["museum"], v: "Museum" },
+  { k: ["theatre", "theater", "cinema"], v: "Theatre or cinema" },
+  { k: ["yacht", "boat", "ship", "barge", "river cruise"], v: "Boat or yacht" },
+  { k: ["marquee", "tipi", "tent", "barn"], v: "Marquee, tipi or barn" },
+  { k: ["park", "zoo", "botanical"], v: "Park, zoo or gardens" },
+  { k: ["chapel", "church"], v: "Place of worship" },
+  { k: ["private member", "members club"], v: "Private members club" },
+  { k: ["nightclub", "club venue", "club"], v: "Nightclub" },
+  { k: ["house", "mansion", "estate", "hall"], v: "Historic house or estate" },
+  { k: ["beach", "coastal"], v: "Beach or coastal venue" },
 ];
 
 export function inferVenueTypes({

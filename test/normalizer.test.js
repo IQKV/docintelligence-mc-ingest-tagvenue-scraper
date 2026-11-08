@@ -71,17 +71,15 @@ test("normalizer maps capacity, pricing and venue type into metadata rows", () =
   assert.equal(fieldValue(meta, "capacity", "configurations.banquet"), 60);
   assert.equal(fieldValue(meta, "capacity", "configurations.theater"), 40);
   assert.equal(fieldValue(meta, "pricing", "currency"), "GBP");
-  assert.equal(fieldValue(meta, "pricing", "price_method"), "per_person_per_session");
+  assert.equal(fieldValue(meta, "pricing", "price_method"), "Per person");
   assert.equal(fieldValue(meta, "pricing", "minimum_spend"), 1000);
   assert.match(fieldValue(meta, "pricing", "price_range_hint"), /£10/);
-  assert.ok(
-    fieldValues(meta, "venue_type", "venue_type").includes("restaurant_private_event_space"),
-  );
+  assert.ok(fieldValues(meta, "venue_type", "venue_type").includes("Restaurant"));
   assert.equal(fieldValue(meta, "av_tech", "wifi"), true);
   assert.equal(fieldValue(meta, "av_tech", "projector"), true);
   assert.equal(fieldValue(meta, "logistics", "air_conditioning"), true);
   assert.equal(fieldValue(meta, "logistics", "natural_light"), true);
-  assert.equal(fieldValue(meta, "catering", "policy"), "in_house_exclusive");
+  assert.equal(fieldValue(meta, "catering", "policy"), "In-house catering only");
   assert.deepEqual(fieldValues(meta, "catering", "cuisines_available"), ["british"]);
   assert.equal(fieldValue(meta, "logistics", "parking_available"), true);
   assert.equal(fieldValue(meta, "logistics", "alcohol_licence"), true);
