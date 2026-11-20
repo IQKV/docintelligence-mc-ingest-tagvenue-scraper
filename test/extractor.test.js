@@ -65,6 +65,11 @@ test("extractor reads the live facilities block", () => {
 test("extractor reads the live pricing table", () => {
   const raw = extract();
   assert.equal(raw._scrape.pricing_rows_count, 3);
+  assert.deepEqual(raw.dom.pricing_rows, [
+    { header: true, name: "Monday", price: "£1", method: "per person" },
+    { header: false, name: "Exclusive Venue Hire", price: "£1000", method: "min. spend" },
+    { header: false, name: "The Mezzanine", price: "£10", method: "per person" },
+  ]);
   assert.equal(raw.dom.price_hint_text, "from £1 per person");
   assert.equal(raw.dom.price_minimum_spend_text, "from £1000 min. spend");
 });

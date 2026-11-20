@@ -216,6 +216,7 @@ export function extractTagvenueRecord({
       gallery_images: galleryImgs.slice(0, 200),
       price_hint_text: priceHintText,
       price_minimum_spend_text: priceMinimumSpend,
+      pricing_rows: pricingRows,
       reviews_aggregate_value_raw: reviewsAggregateValue,
       reviews_aggregate_count_raw: reviewsAggregateCount,
       reviews,

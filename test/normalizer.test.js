@@ -61,11 +61,14 @@ test("normalizer emits flat {group, field, value} metadata rows", () => {
   assert.ok(
     meta.items.some((row) => row.group === "capacity" && row.field === "configurations.banquet"),
   );
-  assert.ok(meta.items.filter((row) => row.group === "amenities").length > 1);
+  assert.ok(
+    meta.items.filter((row) => row.group === "basic" && row.field === "amenities").length > 1,
+  );
 });
 
-test("normalizer maps capacity, pricing and venue type into metadata rows", () => {
+test("normalizer maps capacity, pricing and venue categories into metadata rows", () => {
   const meta = normalize().metadata;
+  assert.equal(fieldValue(meta, "profile", "category"), "Restaurant");
   assert.equal(fieldValue(meta, "capacity", "max_total"), 90);
   assert.equal(fieldValue(meta, "capacity", "configurations.standing"), 90);
   assert.equal(fieldValue(meta, "capacity", "configurations.banquet"), 60);
@@ -74,7 +77,10 @@ test("normalizer maps capacity, pricing and venue type into metadata rows", () =
   assert.equal(fieldValue(meta, "pricing", "price_method"), "Per person");
   assert.equal(fieldValue(meta, "pricing", "minimum_spend"), 1000);
   assert.match(fieldValue(meta, "pricing", "price_range_hint"), /£10/);
-  assert.ok(fieldValues(meta, "venue_type", "venue_type").includes("Restaurant"));
+  assert.deepEqual(fieldValues(meta, "pricing", "price_lines"), [
+    { name: "Exclusive Venue Hire", amount: 1000, unit: "min. spend" },
+    { name: "The Mezzanine", amount: 10, unit: "per person" },
+  ]);
   assert.equal(fieldValue(meta, "av_tech", "wifi"), true);
   assert.equal(fieldValue(meta, "av_tech", "projector"), true);
   assert.equal(fieldValue(meta, "logistics", "air_conditioning"), true);
@@ -83,6 +89,15 @@ test("normalizer maps capacity, pricing and venue type into metadata rows", () =
   assert.deepEqual(fieldValues(meta, "catering", "cuisines_available"), ["british"]);
   assert.equal(fieldValue(meta, "logistics", "parking_available"), true);
   assert.equal(fieldValue(meta, "logistics", "alcohol_licence"), true);
+});
+
+test("normalizer keeps other inferred categories as additional venue types", () => {
+  const raw = extractTagvenueRecord({ url: VENUE_URL, html: HTML });
+  raw.ld.name = "The Last Talisman Hotel";
+  const meta = normalizeTagvenueToCanonical(raw, NOW).metadata;
+
+  assert.equal(fieldValue(meta, "profile", "category"), "Restaurant");
+  assert.ok(fieldValues(meta, "venue_type", "venue_type").includes("Hotel"));
 });
 
 test("normalizer turns unavailable features into canonical restrictions", () => {
@@ -95,7 +110,7 @@ test("normalizer turns unavailable features into canonical restrictions", () => 
     "BYO alcohol not allowed",
   ]);
   // Capacity labels ("Up to 300 standing") belong to `capacity`, not `amenities`.
-  assert.ok(!fieldValues(meta, "amenities", "amenities").some((a) => /^up to\b/i.test(a)));
+  assert.ok(!fieldValues(meta, "basic", "amenities").some((a) => /^up to\b/i.test(a)));
 });
 
 test("normalizer lists one asset per photo, keyed by a predictable file name", () => {

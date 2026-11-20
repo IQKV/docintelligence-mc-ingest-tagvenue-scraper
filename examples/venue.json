@@ -59,7 +59,7 @@
       { "group": "capacity", "field": "configurations.banquet", "value": 60 },
       { "group": "capacity", "field": "configurations.boardroom", "value": 18 },
       { "group": "capacity", "field": "min_attendees_per_event", "value": 30 },
-      { "group": "venue_type", "field": "venue_type", "value": "Restaurant" },
+      { "group": "profile", "field": "category", "value": "Restaurant" },
       { "group": "catering", "field": "policy", "value": "In-house catering only" },
       { "group": "catering", "field": "vegan_available", "value": true },
       { "group": "catering", "field": "vegetarian_available", "value": true },
@@ -84,22 +84,22 @@
       { "group": "logistics", "field": "paid_parking_nearby", "value": true },
       { "group": "logistics", "field": "noise_restriction_after", "value": "23:00" },
       { "group": "logistics", "field": "alcohol_licence", "value": true },
-      { "group": "amenities", "field": "amenities", "value": "Wi-Fi" },
-      { "group": "amenities", "field": "amenities", "value": "Projector" },
-      { "group": "amenities", "field": "amenities", "value": "Flatscreen TV" },
-      { "group": "amenities", "field": "amenities", "value": "Whiteboard" },
-      { "group": "amenities", "field": "amenities", "value": "Flipchart" },
-      { "group": "amenities", "field": "amenities", "value": "PA system / speakers" },
-      { "group": "amenities", "field": "amenities", "value": "Air conditioner" },
-      { "group": "amenities", "field": "amenities", "value": "Natural light" },
+      { "group": "basic", "field": "amenities", "value": "Wi-Fi" },
+      { "group": "basic", "field": "amenities", "value": "Projector" },
+      { "group": "basic", "field": "amenities", "value": "Flatscreen TV" },
+      { "group": "basic", "field": "amenities", "value": "Whiteboard" },
+      { "group": "basic", "field": "amenities", "value": "Flipchart" },
+      { "group": "basic", "field": "amenities", "value": "PA system / speakers" },
+      { "group": "basic", "field": "amenities", "value": "Air conditioner" },
+      { "group": "basic", "field": "amenities", "value": "Natural light" },
       {
-        "group": "amenities",
+        "group": "basic",
         "field": "amenities",
         "value": "Paid parking facilities available nearby"
       },
-      { "group": "amenities", "field": "amenities", "value": "Private Bar" },
-      { "group": "amenities", "field": "amenities", "value": "Private Entrance" },
-      { "group": "amenities", "field": "amenities", "value": "Private Toilets" },
+      { "group": "basic", "field": "amenities", "value": "Private Bar" },
+      { "group": "basic", "field": "amenities", "value": "Private Entrance" },
+      { "group": "basic", "field": "amenities", "value": "Private Toilets" },
       { "group": "restrictions", "field": "restrictions", "value": "No smoking in the building" },
       {
         "group": "restrictions",
@@ -125,6 +125,16 @@
         "value": "from £10 per person / per session"
       },
       { "group": "pricing", "field": "price_method", "value": "Per person" },
+      {
+        "group": "pricing",
+        "field": "price_lines",
+        "value": { "name": "Exclusive Venue Hire", "amount": 1000, "unit": "min. spend" }
+      },
+      {
+        "group": "pricing",
+        "field": "price_lines",
+        "value": { "name": "The Mezzanine", "amount": 10, "unit": "per person" }
+      },
       { "group": "music_and_sound", "field": "play_own_music_allowed", "value": true },
       { "group": "music_and_sound", "field": "noise_restriction_after", "value": "23:00" },
       {

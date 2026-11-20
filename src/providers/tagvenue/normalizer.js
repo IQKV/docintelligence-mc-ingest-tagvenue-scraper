@@ -117,6 +117,14 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
   }
 
   const minSpendNumber = parseNumericValueFromString(dom.price_minimum_spend_text || "");
+  const priceLines = (dom.pricing_rows || [])
+    .filter((row) => !row.header)
+    .map((row) => ({
+      name: cleanText(row.name),
+      amount: parseNumericValueFromString(row.price),
+      unit: cleanText(row.method),
+    }))
+    .filter((line) => line.amount != null);
 
   // Capacity
   const specRows = dom.spec_table_rows || [];
@@ -252,8 +260,15 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
     : null;
 
   const metadataFields = {
+    profile: {
+      category: venueTypes[0],
+    },
+    venue_type: venueTypes.slice(1),
+    basic: {
+      // Capacity labels are stored separately to avoid duplicate amenity tags.
+      amenities: buckets.raw.filter((line) => !/^\s*up to\b/i.test(line)).slice(0, 200),
+    },
     capacity,
-    venue_type: venueTypes,
     catering: {
       policy: cateringPolicy,
       kosher_available: !!buckets.catering.kosher_available || null,
@@ -302,9 +317,6 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
       noise_restriction_after: buckets.logistics.noise_restriction_after || null,
       alcohol_licence: !!buckets.logistics.alcohol_licence || null,
     },
-    // Capacity labels ("Up to 300 standing") live in `capacity`, so keep them
-    // out of the amenities list to avoid the same fact appearing twice.
-    amenities: buckets.raw.filter((line) => !/^\s*up to\b/i.test(line)).slice(0, 200),
     restrictions: restrictions.slice(0, 50),
     pricing: {
       currency,
@@ -313,6 +325,7 @@ export function normalizeTagvenueToCanonical(raw, now = new Date()) {
         priceMethod === "Per session or hire" ? (priceNumber ?? minSpendNumber) : null,
       price_range_hint: priceHint,
       price_method: priceMethod,
+      price_lines: priceLines,
     },
     music_and_sound: {
       play_own_music_allowed: !!buckets.music_and_sound.play_own_music_allowed || null,
